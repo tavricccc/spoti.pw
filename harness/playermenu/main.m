@@ -214,7 +214,23 @@ static void collect(UIView *view, NSString *className, NSMutableArray<UIView *> 
 @interface SGHarnessSheetDelegate : NSObject <UIViewControllerTransitioningDelegate>
 @end
 
+// Stretch only the mock sheet's entry so a rapid menu close precedes its completion.
+@interface SGHarnessSlowPresentation : NSObject <UIViewControllerAnimatedTransitioning>
+@end
+@implementation SGHarnessSlowPresentation
+- (NSTimeInterval)transitionDuration:(id<UIViewControllerContextTransitioning>)context { return 1.5; }
+- (void)animateTransition:(id<UIViewControllerContextTransitioning>)context {
+    UIView *view = [context viewForKey:UITransitionContextToViewKey];
+    view.frame = [context finalFrameForViewController:[context viewControllerForKey:UITransitionContextToViewControllerKey]];
+    [context.containerView addSubview:view];
+    after(1.5, ^{ [context completeTransition:!context.transitionWasCancelled]; });
+}
+@end
+
 @implementation SGHarnessSheetDelegate
+- (id<UIViewControllerAnimatedTransitioning>)animationControllerForPresentedController:(UIViewController *)presented presentingController:(UIViewController *)presenting sourceController:(UIViewController *)source {
+    return argument(@"quick") ? [SGHarnessSlowPresentation new] : nil;
+}
 - (UIPresentationController *)presentationControllerForPresentedViewController:(UIViewController *)presented presentingViewController:(UIViewController *)presenting sourceViewController:(UIViewController *)source {
     _TtC22NavigationUI_SheetImpl27SheetPresentationController *sheet = [[_TtC22NavigationUI_SheetImpl27SheetPresentationController alloc] initWithPresentedViewController:presented presentingViewController:presenting];
     sheet.detents = @[UISheetPresentationControllerDetent.mediumDetent];
@@ -271,6 +287,7 @@ static BOOL onScreen(UIView *view) {
 
 @interface NowPlayingHarnessViewController : UIViewController
 @property (nonatomic, strong) UIButton *more;
+@property (nonatomic, strong) UIViewController *keptSheet;
 @end
 
 @implementation NowPlayingHarnessViewController
@@ -304,6 +321,10 @@ static BOOL onScreen(UIView *view) {
 
 // The nesting Spotify's sheet has: a container presented as a sheet > navigation > page > menu.
 - (void)openMenu {
+    if (argument(@"reuse") && self.keptSheet) {
+        [self presentViewController:self.keptSheet animated:YES completion:nil];
+        return;
+    }
     _TtC24ContextMenu_InternalImpl25ContextMenuViewController *menu = [_TtC24ContextMenu_InternalImpl25ContextMenuViewController new];
     UIViewController *page = [UIViewController new];
     [page addChildViewController:menu];
@@ -323,6 +344,7 @@ static BOOL onScreen(UIView *view) {
     if (!delegate) delegate = [SGHarnessSheetDelegate new];
     container.modalPresentationStyle = UIModalPresentationCustom;
     container.transitioningDelegate = delegate;
+    self.keptSheet = container;
     [self presentViewController:container animated:YES completion:nil];
 }
 
@@ -472,6 +494,35 @@ static void dump(UIView *view, int depth, NSMutableString *out) {
         [player.more sendActionsForControlEvents:UIControlEventTouchUpInside];
     });
     after(2.2, ^{ report(window, @"open"); });
+    if (argument(@"quick")) {
+        after(1.15, ^{
+            UIButton *anchor = anchorOf(window);
+            if (argument(@"quickpick")) choose(window, @"Add to playlist");
+            else [anchor.contextMenuInteraction dismissMenu];
+            // Exercise the end callback independently of the system menu's animation duration.
+            dispatch_block_t closed = [anchor valueForKey:@"closed"];
+            NSCAssert(closed && player.presentedViewController.isBeingPresented, @"quick must close during presentation");
+            closed();
+        });
+        after(3.5, ^{
+            NSCAssert(!player.presentedViewController, @"a rapid close must remove the hidden modal");
+            NSCAssert(!player.keptSheet.view.hidden && player.keptSheet.view.userInteractionEnabled && !player.keptSheet.view.layer.mask,
+                      @"dismissal must restore the sheet's view for reuse");
+            NSLog(@"[harness] PASS: rapid close released the hidden sheet and restored its view");
+            [player.more sendActionsForControlEvents:UIControlEventTouchUpInside];
+        });
+        after(5.2, ^{
+            NSCAssert(player.presentedViewController, @"the player must be able to present another menu");
+            [anchorOf(window).contextMenuInteraction dismissMenu];
+            dispatch_block_t closed = [anchorOf(window) valueForKey:@"closed"];
+            NSCAssert(closed, @"a reused menu must have a fresh close callback");
+            closed();
+        });
+        after(6.5, ^{
+            NSCAssert(!player.presentedViewController, @"the reopened menu must dismiss too");
+            NSLog(@"[harness] PASS: menu reopened and dismissed%@", argument(@"reuse") ? @" using the same sheet" : @"");
+        });
+    }
     if (argument(@"hold")) after(5, ^{ report(window, @"still open at 5 s"); });
     if (argument(@"dimmings")) for (NSNumber *at in @[@1.05, @1.5, @4]) after(at.doubleValue, ^{
         NSMutableArray<UIView *> *found = [NSMutableArray array];

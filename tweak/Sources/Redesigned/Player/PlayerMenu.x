@@ -417,6 +417,8 @@ static SGRPlayerMenuAnchor *anchorIn(UIView *button) {
 @property (nonatomic, copy) NSDictionary<NSString *, SGRPlayerMenuSpotifyRow *> *rowsByIdentifier;
 @property (nonatomic) NSTimeInterval tappedAt;
 @property (nonatomic, strong) NSTimer *poll;
+// A fast close can arrive while Spotify's hidden sheet is still being presented.
+@property (nonatomic, copy) dispatch_block_t afterPresentation;
 @property (nonatomic, copy) void (^pick)(SGRPlayerMenuTakeover *t);
 // The loading row's, while the menu has no rows at all to show.
 @property (nonatomic, copy) void (^loadingDone)(NSArray<UIMenuElement *> *elements);
@@ -507,17 +509,22 @@ static void hidePresentation(UIView *sheet, UIView *container) {
     hideSystemDimming(container);
 }
 
-static void showPresentation(UIView *sheet, UIView *container) {
+static void restorePresentation(UIView *sheet, UIView *container) {
     dimmingIn(container).hidden = NO;
     showSystemDimming(container);
+    if (!objc_getAssociatedObject(sheet, &kMaskKey)) return;
     id saved = objc_getAssociatedObject(sheet, &kSavedMaskKey);
-    sheet.alpha = 0;
     sheet.hidden = NO;
     sheet.layer.mask = saved == NSNull.null ? nil : saved;
     objc_setAssociatedObject(sheet, &kMaskKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     objc_setAssociatedObject(sheet, &kSavedMaskKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     sheet.userInteractionEnabled = YES;
     sheet.accessibilityElementsHidden = NO;
+}
+
+static void showPresentation(UIView *sheet, UIView *container) {
+    restorePresentation(sheet, container);
+    sheet.alpha = 0;
     [UIView animateWithDuration:0.25 animations:^{ sheet.alpha = 1; }];
 }
 
@@ -546,12 +553,23 @@ static void finish(SGRPlayerMenuTakeover *t, NSString *why, void (^then)(void)) 
         t.loadingDone = nil;
     }
     UIViewController *sheet = t.sheet;
-    if (!sheet.presentingViewController || sheet.isBeingDismissed) {
-        if (then) then();
-        return;
-    }
-    SGLog(@"redesign player menu: Spotify's sheet taken away, %@", why);
-    [sheet dismissViewControllerAnimated:NO completion:then];
+    __weak UIViewController *weakSheet = sheet;
+    dispatch_block_t dismiss = ^{
+        UIViewController *presented = weakSheet;
+        if (!presented.presentingViewController) {
+            if (then) then();
+            return;
+        }
+        if (presented.isBeingDismissed) return;
+        SGLog(@"redesign player menu: Spotify's sheet taken away, %@", why);
+        [presented dismissViewControllerAnimated:NO completion:then];
+    };
+    // UIKit cannot reliably dismiss a sheet in the middle of its presentation. Keep the close until
+    // presentationTransitionDidEnd instead of leaving a hidden modal behind after a rejected dismiss.
+    if (sheet.isBeingPresented) {
+        t.afterPresentation = dismiss;
+        SGLog(@"redesign player menu: close waits for Spotify's sheet to finish presenting, %@", why);
+    } else dismiss();
 }
 
 // A row that changes in place (Lyrics • On) leaves Spotify's sheet up with nothing to show it.
@@ -571,6 +589,12 @@ static void settle(SGRPlayerMenuTakeover *t) {
 }
 
 static void fire(SGRPlayerMenuTakeover *t, SGRPlayerMenuSpotifyRow *row) {
+    if (!t || t.finished || t.revealed) return;
+    if (t.sheet.isBeingPresented) {
+        __weak SGRPlayerMenuTakeover *weak = t;
+        t.afterPresentation = ^{ fire(weak, row); };
+        return;
+    }
     UITableView *table = tableIn(t.menu.viewIfLoaded, 0);
     __block BOOL fired = NO;
     if (table) {
@@ -616,6 +640,11 @@ static void hold(SGRPlayerMenuTakeover *t, SGRPlayerMenuSpotifyRow *row) {
 
 static void runPick(SGRPlayerMenuTakeover *t) {
     if (!t.pick || t.pickRan || t.finished || t.revealed) return;
+    if (t.sheet.isBeingPresented) {
+        __weak SGRPlayerMenuTakeover *weak = t;
+        t.afterPresentation = ^{ runPick(weak); };
+        return;
+    }
     t.pickRan = YES;
     t.pick(t);
 }
@@ -952,6 +981,12 @@ static void logDarkness(UIView *anyView) {
     UIPresentationController *presentation = (UIPresentationController *)self;
     UIViewController *sheet = presentation.presentedViewController;
     UIViewController *menu = contextMenuIn(sheet, 0);
+    // A sheet or its menu can be reused; the takeover belongs to one presentation only.
+    id previous = objc_getAssociatedObject(menu, &kTakeoverKey);
+    if (previous == NSNull.null || ([previous isKindOfClass:SGRPlayerMenuTakeover.class] &&
+        (((SGRPlayerMenuTakeover *)previous).finished || ((SGRPlayerMenuTakeover *)previous).revealed))) {
+        objc_setAssociatedObject(menu, &kTakeoverKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     if (!moreTappedRecently() || !menu) return;
     objc_setAssociatedObject(sheet, &kClaimKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     hidePresentation(presentation.presentedView, presentation.containerView);
@@ -975,6 +1010,43 @@ static void logDarkness(UIView *anyView) {
         objc_setAssociatedObject(presented, &kClaimKey, @NO, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         showPresentation(strong.presentedView, strong.containerView);
     });
+}
+
+- (void)presentationTransitionDidEnd:(BOOL)completed {
+    %orig;
+    UIPresentationController *presentation = (UIPresentationController *)self;
+    UIViewController *menu = contextMenuIn(presentation.presentedViewController, 0);
+    SGRPlayerMenuTakeover *t = objc_getAssociatedObject(menu, &kTakeoverKey);
+    if (![t isKindOfClass:SGRPlayerMenuTakeover.class]) return;
+    dispatch_block_t pending = t.afterPresentation;
+    t.afterPresentation = nil;
+    if (pending) dispatch_async(dispatch_get_main_queue(), pending);
+    if (!completed) {
+        t.finished = YES;
+        [t.poll invalidate];
+        objc_setAssociatedObject(presentation.presentedViewController, &kClaimKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        restorePresentation(presentation.presentedView, presentation.containerView);
+    }
+}
+
+- (void)dismissalTransitionDidEnd:(BOOL)completed {
+    %orig;
+    if (!completed) return;
+    UIPresentationController *presentation = (UIPresentationController *)self;
+    UIViewController *sheet = presentation.presentedViewController;
+    UIViewController *menu = contextMenuIn(sheet, 0);
+    SGRPlayerMenuTakeover *t = objc_getAssociatedObject(menu, &kTakeoverKey);
+    if (![t isKindOfClass:SGRPlayerMenuTakeover.class]) return;
+    t.finished = YES;
+    t.afterPresentation = nil;
+    [t.poll invalidate];
+    if (t.loadingDone) { t.loadingDone(@[]); t.loadingDone = nil; }
+    t.anchor.shown = nil;
+    t.anchor.closed = nil;
+    objc_setAssociatedObject(sheet, &kClaimKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(sheet, &kTakenKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    restorePresentation(presentation.presentedView, presentation.containerView);
+    objc_setAssociatedObject(menu, &kTakeoverKey, NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
 }
 
 - (void)containerViewDidLayoutSubviews {

@@ -23,3 +23,11 @@ Lyrics on), so with `loading` or `slow` the card has to move from the kept rows 
 frame from the tap, the card's scale, its rows' alpha and the first row's frame whenever they change: that is
 how the open and a change of rows are checked for animation, since the simulator's screen recordings keep no
 reliable timing.
+
+`quick` stretches the mock sheet's presentation to 1.5 s and fires the menu's close callback while it
+is still presenting. It asserts that no hidden modal remains, the sheet's mask and interaction are
+restored, and another menu can open and close. Add `reuse` to present the same sheet and menu again:
+
+    xcrun simctl launch --console-pty <udid> com.vojta.playermenuharness quick reuse
+
+Add `quickpick` to select Add to playlist during presentation instead of closing without a pick.

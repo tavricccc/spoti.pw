@@ -39,7 +39,7 @@ static void applyMode(id properties, BOOL portrait) {
     UIWindow *window = ((UIViewController *)self).viewIfLoaded.window;
     if (!window) return;
     BOOL portrait = window.bounds.size.height >= window.bounds.size.width;
-    for (id properties in sg_modes) applyMode(properties, portrait);
+    for (id properties in sg_modes.keyEnumerator) applyMode(properties, portrait);
 }
 %end
 

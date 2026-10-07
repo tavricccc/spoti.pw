@@ -1,14 +1,14 @@
 // iPad's floating navbar needs no full-width dark scrim behind it.
 // Spotify 9.1.78 UUID c712370b44cd35c8a0584fbed1ad0758:
 // TabBarGradientView initWithFrame: @48@0:8CGRect16 at 0x107bc242c.
-// setAlpha: is inherited UIKit API. Keeping alpha at zero also covers native re-layouts.
+// UIKit's window callback also covers creation through Swift or initWithCoder:.
+// Keeping alpha at zero covers native re-layouts without changing arranged-view visibility.
 #import "Core/SGCore.h"
 
 %hook _TtC23NavigationUI_TabBarImpl18TabBarGradientView
-- (id)initWithFrame:(CGRect)frame {
-    id view = %orig;
-    ((UIView *)view).alpha = 0;
-    return view;
+- (void)didMoveToWindow {
+    %orig;
+    ((UIView *)self).alpha = 0;
 }
 - (void)setAlpha:(CGFloat)alpha {
     %orig(0);

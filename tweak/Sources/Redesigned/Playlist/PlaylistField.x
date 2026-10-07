@@ -62,9 +62,8 @@ static SGRArtworkField *fieldIn(UIView *page) {
     UIView *page = ((UIViewController *)self).viewIfLoaded;
     if (!page || page.bounds.size.height < 200) return;
     sgr_playlistRoot = page;
-    // Behind a curtain until the cover, the field's colour, the header and the first track are all in, so the
-    // page comes in at once rather than a piece at a time (Kit/SGRReveal.h). A playlist is always laid out by
-    // the redesign, so it waits for all of them from the first pass.
+    // Only the controls and first track hold the initial layout curtain. Missing artwork or
+    // a late palette, including Liked Songs, cannot delay access to the page.
     SGRRevealHold(page, SGRRevealPage);
     SGRArtworkField *field = fieldIn(page);
     if (field.superview != page) [page insertSubview:field atIndex:0];

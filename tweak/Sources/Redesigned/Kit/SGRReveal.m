@@ -13,11 +13,11 @@
 #import "SGRField.h"
 #import "SGRTokens.h"
 
-const NSTimeInterval SGRRevealCap = 1.2;
+const NSTimeInterval SGRRevealCap = 0.35;
 // A curtain whose page has not said what it waits for by then is not one the redesign lays out.
 static const NSTimeInterval kClaim = 0.25;
 // The page fading in: the field's colour first, the rest a beat behind it.
-static const NSTimeInterval kFieldFade = 0.4, kContentFade = 0.5, kContentDelay = 0.06;
+static const NSTimeInterval kFieldFade = 0.18, kContentFade = 0.2, kContentDelay = 0;
 // Above every layer Spotify puts on the page.
 static const CGFloat kCurtainZ = 10000;
 
@@ -120,7 +120,7 @@ static void lift(UIView *page, SGRRevealState *state, NSString *why) {
               CACurrentMediaTime() - state.raised, why, arrivalTimes(state));
     }
     if (!curtain) return;
-    if (curtain.window) fadeInPage(page, curtain);
+    if (curtain.window && !SGRReduceMotion()) fadeInPage(page, curtain);
     [curtain removeFromSuperview];
 }
 

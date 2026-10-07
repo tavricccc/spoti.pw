@@ -2,8 +2,8 @@
 // straight away from the card that was tapped, the controls when its buttons arrive, the tracks once their
 // rows have data -- and the redesign drew each piece as it came, so the page arrived in three steps.
 //
-// So a curtain of the page's black goes up over everything on the page on its first pass -- the field, the
-// picture, the header's text and row, Spotify's list, the pinned ⋯ -- and once the page has all of it the
+// A short curtain covers the first layout pass, then yields once the controls and list are ready.
+// Artwork and its palette load independently; neither delays access to the page. The
 // page fades in from behind it: the field brightens out of the black into the page's colour, and the picture,
 // the header and the list fade in over it where they are. The system's
 // navigation bar is not in the page, so the back button is there throughout. What arrives after that comes
@@ -23,11 +23,11 @@ typedef NS_OPTIONS(NSUInteger, SGRRevealPart) {
     SGRRevealColor   = 1 << 1,   // the field has the page's colour (SGRArtworkField's -whenColored:)
     SGRRevealHeader  = 1 << 2,   // the header has its text and Play
     SGRRevealList    = 1 << 3,   // the list has a row with its text, not a loading row
-    SGRRevealPage    = SGRRevealPicture | SGRRevealColor | SGRRevealHeader | SGRRevealList,
+    SGRRevealPage    = SGRRevealHeader | SGRRevealList,
 };
 
 // How long a page waits for its parts before it is shown as it is.
-extern const NSTimeInterval SGRRevealCap;   // 1.2
+extern const NSTimeInterval SGRRevealCap;   // 0.35
 
 // Puts the curtain up over `page` on the first call, and makes it wait for `parts` as well as what it waits for
 // already; 0 puts it up unclaimed. Every call keeps the curtain the page's front view, so it is cheap to call

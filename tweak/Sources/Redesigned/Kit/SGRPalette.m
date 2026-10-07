@@ -262,19 +262,45 @@ static UIColor *tintOf(CGImageRef image, UIColor *surface) {
     if (!completion) return;
     CGFloat ceiling = fieldCeiling();
     dispatch_async(paletteQueue(), ^{
+        // Header dissolves and page fields ask for the same cover. The serial queue
+        // shares their colour work; weak image keys release entries with the cover.
+        static NSMapTable<UIImage *, NSMutableDictionary<NSNumber *, SGRPalette *> *> *cache;
+        if (!cache) cache = [NSMapTable weakToStrongObjectsMapTable];
+        NSMutableDictionary *variants = image ? [cache objectForKey:image] : nil;
+        NSUInteger baseKey = ceiling == kFieldLightnessContrast ? 2 : 0;
+        NSNumber *key = @(baseKey + (request.dissolve ? 1 : 0));
+        SGRPalette *cached = variants[key];
+        if (cached) {
+            dispatch_async(dispatch_get_main_queue(), ^{ completion(cached); });
+            return;
+        }
         SGRPalette *palette = nil;
         CGImageRef cg = image.CGImage;
-        UIColor *edge = cg && CGImageGetWidth(cg) && CGImageGetHeight(cg) ? edgeColorOf(cg) : nil;
+        SGRPalette *base = variants[@(baseKey)];
+        UIColor *edge = base.edgeColor ?: (cg && CGImageGetWidth(cg) && CGImageGetHeight(cg) ? edgeColorOf(cg) : nil);
         if (edge) {
             CFAbsoluteTime start = CFAbsoluteTimeGetCurrent();
             palette = [SGRPalette new];
             palette.edgeColor = edge;
             // The artwork's main colour, not its edge's: a scanned sleeve's edge is the scanner's grey, a
             // portrait's is skin.
-            CGFloat main[3];
-            UIColor *source = dominantColorOf(cg, main)
-                ? [UIColor colorWithRed:toEncoded(main[0]) green:toEncoded(main[1]) blue:toEncoded(main[2]) alpha:1] : edge;
-            palette.fieldColor = fieldColorFor(source, ceiling);
+            if (base) palette.fieldColor = base.fieldColor;
+            else {
+                CGFloat main[3];
+                UIColor *source = dominantColorOf(cg, main)
+                    ? [UIColor colorWithRed:toEncoded(main[0]) green:toEncoded(main[1]) blue:toEncoded(main[2]) alpha:1] : edge;
+                palette.fieldColor = fieldColorFor(source, ceiling);
+            }
+            if (!variants) {
+                variants = [NSMutableDictionary dictionary];
+                [cache setObject:variants forKey:image];
+            }
+            if (!base) {
+                base = [SGRPalette new];
+                base.edgeColor = palette.edgeColor;
+                base.fieldColor = palette.fieldColor;
+                variants[@(baseKey)] = base;
+            }
             if (request.dissolve) {
                 CGFloat aspect = (CGFloat)CGImageGetHeight(cg) / CGImageGetWidth(cg);
                 size_t height = (size_t)MIN(kDissolveWidth * 2, MAX(kDissolveWidth / 2, round(kDissolveWidth * aspect)));
@@ -285,6 +311,7 @@ static UIColor *tintOf(CGImageRef image, UIColor *surface) {
             static dispatch_once_t once;
             double ms = (CFAbsoluteTimeGetCurrent() - start) * 1000;
             dispatch_once(&once, ^{ SGLog(@"redesign kit: first palette %@ from %zux%zu in %.1f ms", palette.fieldColor, CGImageGetWidth(cg), CGImageGetHeight(cg), ms); });
+            variants[key] = palette;
         }
         dispatch_async(dispatch_get_main_queue(), ^{ completion(palette); });
     });

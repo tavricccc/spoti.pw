@@ -31,7 +31,6 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Playlist.h"
-#import "LikedSongsArtwork.h"
 #import <objc/message.h>
 
 // How much of the cover's height the dissolve into the field covers, and the scrim over the top of it that
@@ -110,7 +109,6 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
 // The cover in Spotify's artwork view, and every cover it puts there afterwards: the hero keeps itself
 // right, rather than being handed a picture on each of the header's passes and staying empty between them.
 - (void)followCover:(UIImageView *)source;
-- (void)showArtwork:(UIImage *)image;
 @end
 
 @implementation SGRPlaylistHero {
@@ -176,21 +174,16 @@ static UIView *firstOfClass(UIView *root, Class wanted) {
     UIImage *image = source.image;
     if (!image || source.bounds.size.width < kMinHero || _picture.image == image) return;
 
-    [self showArtwork:image];
-    static BOOL logged;
-    if (late && !logged) {
-        logged = YES;
-        SGLog(@"redesign playlist: the cover landed after the header had laid out; the hero took it");
-    }
-}
-
-- (void)showArtwork:(UIImage *)image {
-    if (_picture.image == image) return;
     self.coverPixels = image.size.width;
     _picture.image = image;
     // The page's field takes its colour from the same picture.
     SGRPlaylistSetArtwork(self, image);
     SGRRevealMark(SGRPlaylistPageOf(self), SGRRevealPicture);
+    static BOOL logged;
+    if (late && !logged) {
+        logged = YES;
+        SGLog(@"redesign playlist: the cover landed after the header had laid out; the hero took it");
+    }
 }
 
 @end
@@ -212,7 +205,7 @@ static UIImageView *coverImageIn(UIView *cover) {
 // The hero sits in the plane Spotify's colour wash is drawn on, which slides away as the header collapses, so
 // Core Animation carries it and its frame is only measured at rest: reading the header per frame flickers.
 // Pulled down past the top the plane grows and the hero stretches with it, bottom kept in place.
-static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *block, CGFloat reach, CGFloat stretch, BOOL likedSongs) {
+static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *block, CGFloat reach, CGFloat stretch) {
     if (!plane || !block) return;
     SGRPlaylistHero *hero = objc_getAssociatedObject(plane, &kHeroKey);
     if (!hero) {
@@ -239,8 +232,7 @@ static void applyHero(UIView *layout, UIView *cover, UIView *plane, UIView *bloc
     CGRect frame = CGRectMake(0, 0, plane.bounds.size.width, bottom);
     if (!CGRectEqualToRect(hero.frame, frame)) hero.frame = frame;
 
-    if (likedSongs) [hero showArtwork:SGRLikedSongsArtwork()];
-    else [hero followCover:coverImageIn(cover)];
+    [hero followCover:coverImageIn(cover)];
     conceal(cover);
 }
 
@@ -557,8 +549,7 @@ static void applyHeader(UIView *layout) {
         objc_setAssociatedObject(block, &kBlockHeightKey, @(rest), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
     CGFloat reach = rest - SGRHeaderInfoBottom - [info contentHeightForWidth:info.bounds.size.width] + SGRHeaderInfoTitleRise;
-    BOOL likedSongs = [modelString(viewModelOf(headerVC), @"formatListType") isEqualToString:@"liked-songs"];
-    if (cover || likedSongs) applyHero(layout, cover, plane, block, reach, stretch, likedSongs);
+    if (cover) applyHero(layout, cover, plane, block, reach, stretch);
 }
 
 // The content layout of the page `root` belongs to, kept weakly on it: the header lays out on every step of

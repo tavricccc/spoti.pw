@@ -496,12 +496,13 @@ static SGRKaraokeLayout *layOut(SGKaraokeLine *line, CGFloat width, SGRKaraokeSt
 // Where each line starts in the stack, from the heights alone. Measuring text is safe off the main
 // thread, and a song's worth of it is kept off it: the first card of a track lays out while the
 // player is opening, and a frame that measured every line then was a frame the animation lost.
-static NSArray<NSNumber *> *topsOf(NSArray<SGKaraokeLine *> *lines, CGFloat width, SGRKaraokeStyle *style, CGFloat gap) {
+static NSArray<NSNumber *> *topsOf(NSArray<SGKaraokeLine *> *lines, CGFloat width, SGRKaraokeStyle *style, CGFloat gap, CGFloat *lastHeight) {
     NSMutableArray<NSNumber *> *tops = [NSMutableArray arrayWithCapacity:lines.count];
     CGFloat top = 0;
     for (SGKaraokeLine *line in lines) {
         [tops addObject:@(top)];
-        top += layOut(line, width, style, -1).height + gap;
+        *lastHeight = layOut(line, width, style, -1).height;
+        top += *lastHeight + gap;
     }
     return tops;
 }
@@ -1043,6 +1044,7 @@ typedef struct {
     NSArray<NSNumber *> *_tops;   // where each line starts in the stack
     NSMutableDictionary<NSNumber *, SGRKaraokeLineView *> *_shown;   // the views there are, by line
     CGFloat _focusTop;            // the top of the line the stack is arranged around
+    CGFloat _lastLineHeight;
     CGFloat _sightOffset, _sightFocus;   // what the views in sight were last chosen for
     NSUInteger _sightArrangement;
     NSUInteger _build;   // counts the songs and widths measured, so a measurement that is late is dropped
@@ -1400,10 +1402,12 @@ typedef struct {
     CGFloat gap = _lineGap;
     NSUInteger build = _build;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
-        NSArray<NSNumber *> *tops = topsOf(lines, width, style, gap);
+        CGFloat lastHeight = 0;
+        NSArray<NSNumber *> *tops = topsOf(lines, width, style, gap, &lastHeight);
         dispatch_async(dispatch_get_main_queue(), ^{
             if (build != self->_build) return;   // the song or the width moved on meanwhile
             self->_tops = tops;
+            self->_lastLineHeight = lastHeight;
             [self placeLinesAnimated:NO];
         });
     });
@@ -1429,9 +1433,11 @@ typedef struct {
     CGFloat width = _builtWidth - 2 * _margin, gap = _lineGap;
     NSUInteger build = ++_build;
     dispatch_async(dispatch_get_global_queue(QOS_CLASS_USER_INTERACTIVE, 0), ^{
-        NSArray<NSNumber *> *tops = topsOf(lines, width, style, gap);
+        CGFloat lastHeight = 0;
+        NSArray<NSNumber *> *tops = topsOf(lines, width, style, gap, &lastHeight);
         dispatch_async(dispatch_get_main_queue(), ^{
             if (build != self->_build) return;
+            self->_lastLineHeight = lastHeight;
             [self showStyle:style tops:tops];
         });
     });
@@ -1507,7 +1513,14 @@ typedef struct {
 // of one row at the anchor, and the lines from the one after it on are moved down by it.
 - (CGFloat)topOfLine:(NSInteger)index {
     CGFloat room = self.bounds.size.height - _band.top - _band.bottom;
-    CGFloat top = _band.top + room * kAnchor + _tops[index].doubleValue - _focusTop;
+    CGFloat anchor = room * kAnchor;
+    if (self.centersFocusedLine && _tops.count) {
+        NSUInteger focus = (NSUInteger)MAX(_focus, 0);
+        CGFloat height = focus + 1 < _tops.count ? _tops[focus + 1].doubleValue - _tops[focus].doubleValue - _lineGap : _lastLineHeight;
+        if (_openBreak >= 0) height = ceil(_font.lineHeight);
+        anchor = (room - height) / 2;
+    }
+    CGFloat top = _band.top + anchor + _tops[index].doubleValue - _focusTop;
     return _openBreak >= 0 && index >= _openBreak ? top + [self breakRoom] : top;
 }
 

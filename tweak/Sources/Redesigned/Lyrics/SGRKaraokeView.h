@@ -9,6 +9,8 @@
 #import "Shared/Lyrics/Lyrics.h"
 
 @interface SGRKaraokeView : UIView
+// Center the focused text block within lineInsets; the phone's existing upper anchor is the default.
+@property (nonatomic) BOOL centersFocusedLine;
 // Hides Spotify's own lyrics next to this view while it has lyrics to show, and brings them back when not.
 - (void)syncSiblings;
 // The part of the view the lines are shown in, as insets from its edges (only top and bottom are

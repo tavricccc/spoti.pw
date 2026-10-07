@@ -55,6 +55,7 @@
 #import "Player.h"
 
 static const CGFloat kThumbSide = 48;          // compact Music-style cover while portrait lyrics are up
+static const CGFloat kTabletHeadingMargin = 24; // aligns the compact heading with the lyrics text
 static const CGFloat kThumbGap = 12;           // between the thumbnail and the title beside it
 static const CGFloat kTitleGap = 12;           // between the title and the controls at the trailing edge
 static const CGFloat kTitleFade = 20;          // over how much of its end a title too long to fit fades out
@@ -218,6 +219,7 @@ static __weak UIView *sg_titleElement;      // the arranged element view holding
     if (!_lyrics) {
         _lyrics = [[SGRKaraokeView alloc] initWithFrame:_stage.bounds];
         _lyrics.autoresizingMask = UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
+        _lyrics.centersFocusedLine = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
         _lyrics.takesTap = ^BOOL { return !sg_tapBroughtBack; };
     }
     if (_lyrics.superview != _stage) [_stage addSubview:_lyrics];
@@ -268,7 +270,9 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     if (CGRectIsNull(area) || CGRectIsNull(cover)) return l;
     CGRect row = untransformed(info, host), bar = untransformed(duration, host);
     // The thumbnail takes the title's own leading edge, so the two line up down the page.
-    CGFloat leading = title ? CGRectGetMinX(untransformed(title, host)) : CGRectGetMinX(area) + SGRSideMargin;
+    BOOL tabletPortrait = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad && host.window.bounds.size.height > host.window.bounds.size.width;
+    CGFloat originalLeading = title ? CGRectGetMinX(untransformed(title, host)) : CGRectGetMinX(area) + SGRSideMargin;
+    CGFloat leading = tabletPortrait ? CGRectGetMinX(area) + kTabletHeadingMargin : originalLeading;
     l.cover = cover;
     UIView *header = sg_header.viewIfLoaded;
     CGFloat headerBottom = header && [header isDescendantOfView:host] ? CGRectGetMaxY(SGFrameIn(header, host)) : host.safeAreaInsets.top;
@@ -276,7 +280,7 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     // Beside the thumbnail when the title can be moved clear of it, under it when it cannot be found.
     CGFloat top = title ? CGRectGetMidY(l.thumb) - row.size.height / 2 : CGRectGetMaxY(l.thumb) + SGRGrid;
     l.lift = top - CGRectGetMinY(row);
-    l.shift = title ? kThumbSide + kThumbGap : 0;
+    l.shift = title ? leading + kThumbSide + kThumbGap - originalLeading : 0;
     CGFloat lines = MAX(CGRectGetMaxY(l.thumb), top + row.size.height) + kLyricsTop;
     l.stage = CGRectMake(CGRectGetMinX(area), lines, area.size.width, CGRectGetMinY(bar) - kLyricsBottom - lines);
     // With the controls away: from the header row's top, just under the status bar, down to the home

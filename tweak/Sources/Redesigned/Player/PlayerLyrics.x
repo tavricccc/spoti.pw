@@ -54,6 +54,7 @@
 #import "Shared/Sing/SGSingController.h"
 #import "Player.h"
 #import "PlayerLandscape.h"
+#import "PlayerDismiss.h"
 
 static const CGFloat kThumbSide = 48;          // compact Music-style cover while portrait lyrics are up
 static const CGFloat kThumbGap = 12;           // between the thumbnail and the title beside it
@@ -717,6 +718,7 @@ static void replace(void) {
     sg_player = (UIViewController *)self;
     watchTouches(host);
     replace();
+    SGRPlayerDismissLayout(host);
 }
 
 // The bar morphs back out of a full size cover as the player closes, so the thumbnail is put away first.

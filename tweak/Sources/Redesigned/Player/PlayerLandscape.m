@@ -9,9 +9,10 @@
 #import "Shared/Lyrics/Lyrics.h"
 #import "Player.h"
 #import "PlayerLandscape.h"
+#import "PlayerDismiss.h"
 
 static char kPanelKey, kMaskKey, kAccessKey, kTouchKey;
-static char kMoreKey, kSaveKey, kConnectKey, kQueueKey, kCloseKey, kMoreGlassKey, kSaveGlassKey;
+static char kMoreKey, kSaveKey, kConnectKey, kQueueKey, kMoreGlassKey, kSaveGlassKey;
 
 BOOL SGRPlayerLandscape(UIView *host) {
     return host.window && host.bounds.size.width > host.bounds.size.height &&
@@ -123,7 +124,7 @@ CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).l
     _connect = [self button:@"airplay.audio" size:22 title:@"Devices" action:^{ [weak activate:@"Components.ConnectButtonOutputSwitcher" key:&kConnectKey]; }];
     _lyrics = [self button:@"quote.bubble" size:22 title:@"Lyrics" action:^{ SGRPlayerToggleLyrics(); [weak refresh]; [weak setNeedsLayout]; }];
     _queue = [self button:@"list.bullet" size:22 title:@"Queue" action:^{ [weak activate:@"QueueButtonNowPlaying" key:&kQueueKey]; }];
-    _close = [self button:@"chevron.down" size:20 title:@"Close player" action:^{ [weak activate:@"now-playing-minimize-button" key:&kCloseKey]; }];
+    _close = [self button:@"chevron.down" size:20 title:@"Close player" action:^{ SGRPlayerDismiss(weak.host); }];
     SGAddPlayerStateObserver(self);
     for (NSNotificationName name in @[SGRNowPlayingArtworkDidChangeNotification, SGKaraokeLinesDidChangeNotification, UIApplicationDidBecomeActiveNotification]) {
         [_notifications addObject:[NSNotificationCenter.defaultCenter addObserverForName:name object:nil queue:NSOperationQueue.mainQueue usingBlock:^(NSNotification *note) {

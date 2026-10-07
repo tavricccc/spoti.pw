@@ -5,4 +5,3 @@
 #define SGRKeyTabletLandscapeFullscreen @"spotifyglass.redesign.player.ipad.landscapeFullscreen"
 
 NSArray<SGModSection *> *SGRPlayerTabletSections(void);
-void SGRPlayerTabletHeaderLaidOut(UIViewController *unit);

@@ -5,7 +5,7 @@
 ## 播放頁策略
 
 - iPad 播放頁的 `now-playing-toggle-button` 固定透明，觸控與輔助使用入口停用；原生 minimize 按鈕保留。初始模式固定為 `Collapsed`。
-- 直向全螢幕轉成寬視窗後，MainUIContainer 在旋轉完成時，以原生 completion 串接關閉 expanded overlay 與呈現 side attachment；由目前的 barAnimator 處理模式切換。沒有直接截斷低層 `expand`。
+- Regular 播放器在 Regular size class 下收到開啟全螢幕要求時，改用原生 side attachment 呈現 Split。已有 expanded overlay 時先透過原生 completion 關閉，再呈現 Split；保留呼叫端 completion。Compact 播放器不改動。移除旋轉完成後額外收合一次的處理。
 - iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
 - 移除直／橫向初始全螢幕設定、自製橫向播放器、額外收合箭頭／手勢、直向 split 控制群位移。旧設定不再讀取。
 - Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據實際玻璃 bar 寬高與文字大小隱藏／還原標籤；上下排圖示與文字時，額外保留 8pt 間距及上下留白。窄視窗擠壓時自動隱藏，不再只量 Spotify 外層面板寬度。
@@ -33,7 +33,7 @@ iPad 直向歌詞的封面／歌名使用 24pt 左邊界，對齊歌詞文字。
 
 ## Binary 依據
 
-以使用者提供的已解密 IPA 查核，main binary UUID：`c712370b-44cd-35c8-a058-4fbed1ad0758`，cryptid 為 0。切換按鈕 identifier `expand_collapse_button` 的字串位址是 `0x10a45cbc0`，引用包括 `0x1014fb32c`、`0x105bbff38`、`0x1079f02d8`。
+以使用者提供的已解密 IPA 查核，main binary UUID：`c712370b-44cd-35c8-a058-4fbed1ad0758`，cryptid 為 0。
 
 初始模式 flag 是 `ios-adaptivelayout-experimentationmanager.now_playing_view_initial_mode`，enum 值為 `Expanded`／`Collapsed`，預設 `Collapsed`。properties initializer `0x1055a1944` 讀取它；字串 switch table `0x10d11f218`／`0x10d11f228` 對應 Expanded=0／Collapsed=1。現在僅由 flag registry 強制 Collapsed，不再修改 Swift byte ivar。
 
@@ -42,6 +42,8 @@ iPad 直向歌詞的封面／歌名使用 24pt 左邊界，對齊歌詞文字。
 真正的控制來自 `ToggleButtonElementUI`：view getter `0x104b0e604` → constructor `0x1023d1c78` → `0x10306a548` → `setAccessibilityIdentifier:`，字串 `now-playing-toggle-button` 位於 `0x10a6835b0`。constructor 綁定 `UIControlEventTouchUpInside`，可從控制入口完整停用，而不跳過原生轉場的狀態收尾。舊的 identifier 猜測與 root view 掃描已移除。
 
 `NowPlayingRegularAnimator` 的 `setExpandedUIVisibility:navigationReason:completion:`（`0x106843568`）在值 1 走 `dismissViewController:animated:reason:completion:`；`setReducedUIMode:navigationReason:completion:`（`0x107bb9c90`）值 1 經 `0x107a027f0` 呼叫 `presentSideAttachmentWithtransitionStyle:completion:`。MainUIContainer 的對應 setter（`0x105942c98`／`0x10791f060`）轉送到目前的 `barAnimator`（selref `0x10cdd5c30`），其旋轉委派位於 `0x105625920`；使用原生 `SPTUBINavigationReason +passthrough`（`0x108130028`）。
+
+23:42 的實機錄影顯示旋轉後短暫 Split 又重新全螢幕。MainUIContainer 的 `traitCollectionDidChange:`（`0x108788a84` → `0x102cb116c`）在 size class 改變時關閉 expanded UI、換 animator，最後在 `0x102cb13a4–0x102cb13b4` 再要求 expanded=0。這次在 owning RegularAnimator 處理該要求，不依賴旋轉回呼先後順序。`horizontalSizeClass` ivar（offset global `0x10d308dd8`）以 runtime offset 讀取 NSInteger；原生 `0x104206208–0x104206220` 本身也是讀取這個值，並要求 Regular=2、nowPlayingUIMode=0 才能呈現 side attachment。沒有寫入 Swift ivar。
 
 尚未找到一個能可靠停用整個 tablet／side attachment 排版的 flag。沒有修改 `sideAttachment` 或偽造 `isActive`；binary 顯示 `sideAttachment` 是必要容器值，直接返回 nil 會進入 trap。
 

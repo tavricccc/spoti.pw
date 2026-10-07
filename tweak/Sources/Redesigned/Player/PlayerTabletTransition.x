@@ -24,6 +24,7 @@ static ptrdiff_t SGRTabletSizeClassOffset;
 - (void)setExpandedUIVisibility:(NSInteger)value navigationReason:(id)reason completion:(dispatch_block_t)completion {
     id<SGRTabletAnimator> animator = (id)self;
     NSInteger sizeClass = *(const NSInteger *)((const uint8_t *)(__bridge const void *)self + SGRTabletSizeClassOffset);
+    SGLog(@"redesign tablet: expanded request %ld, size class %ld, UI mode %ld", (long)value, (long)sizeClass, (long)[animator nowPlayingUIMode]);
     if (value != 0 || sizeClass != UIUserInterfaceSizeClassRegular || [animator nowPlayingUIMode] != 0) {
         %orig;
         return;

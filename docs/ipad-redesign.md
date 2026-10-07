@@ -6,7 +6,7 @@
 
 - iPad 播放頁的 `now-playing-toggle-button` 固定透明，觸控與輔助使用入口停用；原生 minimize 按鈕保留。初始模式固定為 `Collapsed`。
 - Regular 播放器在 Regular size class 下收到開啟全螢幕要求時，改用原生 side attachment 呈現 Split。已有 expanded overlay 時先透過原生 completion 關閉，再呈現 Split；保留呼叫端 completion。Compact 播放器不改動。移除旋轉完成後額外收合一次的處理。
-- iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
+- iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。MainUIContainer 收到旋轉目標尺寸時立即更新 override，不再只等被全螢幕播放頁蓋住的 tab bar 排版。旋轉期間的 tab bar 回呼使用目標尺寸；完成後重新使用實際 window 尺寸。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
 - 移除直／橫向初始全螢幕設定、自製橫向播放器、額外收合箭頭／手勢、直向 split 控制群位移。旧設定不再讀取。
 - Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據實際玻璃 bar 寬高與文字大小隱藏／還原標籤；上下排圖示與文字時，額外保留 8pt 間距及上下留白。窄視窗擠壓時自動隱藏，不再只量 Spotify 外層面板寬度。
 
@@ -44,6 +44,8 @@ iPad 直向歌詞的封面／歌名使用 24pt 左邊界，對齊歌詞文字。
 `NowPlayingRegularAnimator` 的 `setExpandedUIVisibility:navigationReason:completion:`（`0x106843568`）在值 1 走 `dismissViewController:animated:reason:completion:`；`setReducedUIMode:navigationReason:completion:`（`0x107bb9c90`）值 1 經 `0x107a027f0` 呼叫 `presentSideAttachmentWithtransitionStyle:completion:`。MainUIContainer 的對應 setter（`0x105942c98`／`0x10791f060`）轉送到目前的 `barAnimator`（selref `0x10cdd5c30`），其旋轉委派位於 `0x105625920`；使用原生 `SPTUBINavigationReason +passthrough`（`0x108130028`）。
 
 23:42 的實機錄影顯示旋轉後短暫 Split 又重新全螢幕。MainUIContainer 的 `traitCollectionDidChange:`（`0x108788a84` → `0x102cb116c`）在 size class 改變時關閉 expanded UI、換 animator，最後在 `0x102cb13a4–0x102cb13b4` 再要求 expanded=0。這次在 owning RegularAnimator 處理該要求，不依賴旋轉回呼先後順序。`horizontalSizeClass` ivar（offset global `0x10d308dd8`）以 runtime offset 讀取 NSInteger；原生 `0x104206208–0x104206220` 本身也是讀取這個值，並要求 Regular=2、nowPlayingUIMode=0 才能呈現 side attachment。沒有寫入 Swift ivar。
+
+00:12 的實機錄影中，旋轉後仍維持全螢幕，兩次收起皆為使用者手動操作；不可描述成自動收合成功。首次手動收起後才出現 Split。環境更新改用 MainUIContainer 的 `viewWillTransitionToSize:withTransitionCoordinator:`（`0x1024beb94` → `0x10848ab5c`），以旋轉目標尺寸先更新 UIWindow traits；轉場完成時僅清除目標尺寸並同步實際環境，不额外收合播放器。`redesign tablet:` log 記錄 traits 更新和 RegularAnimator 收到的 expanded 要求、size class 與 UI mode；實機旋轉結果待驗證。
 
 尚未找到一個能可靠停用整個 tablet／side attachment 排版的 flag。沒有修改 `sideAttachment` 或偽造 `isActive`；binary 顯示 `sideAttachment` 是必要容器值，直接返回 nil 會進入 trap。
 

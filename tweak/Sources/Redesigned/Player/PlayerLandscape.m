@@ -61,6 +61,9 @@ CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).l
     SGRGlyphButton *_more, *_save, *_connect, *_lyrics, *_queue, *_close;
     NSTimer *_timer;
     NSMutableArray *_notifications;
+    __weak UIView *_saveSource;
+    NSString *_saveLabel;
+    BOOL _saveSelected;
 }
 - (SGRGlyphButton *)button:(NSString *)symbol size:(CGFloat)size title:(NSString *)title action:(void (^)(void))action {
     SGRGlyphButton *button = [SGRGlyphButton buttonWithSymbol:symbol pointSize:size title:title];
@@ -120,7 +123,7 @@ CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).l
     _more = [self button:@"ellipsis" size:20 title:@"More" action:^{ [weak activate:@"Context menu" key:&kMoreKey]; }];
     SGPlayerMenuWatchMoreButton(_more);
     SGRPlayerMenuWatchMoreButton(_more);
-    _save = [self button:@"plus.circle" size:24 title:@"Add to library" action:^{ [weak activate:@"AddButtonNowPlaying" key:&kSaveKey]; }];
+    _save = [self button:@"plus.circle" size:24 title:@"Add to library" action:^{ [weak activate:@"Components.UI.AddToButton" key:&kSaveKey]; }];
     _connect = [self button:@"airplay.audio" size:22 title:@"Devices" action:^{ [weak activate:@"Components.ConnectButtonOutputSwitcher" key:&kConnectKey]; }];
     _lyrics = [self button:@"quote.bubble" size:22 title:@"Lyrics" action:^{ SGRPlayerToggleLyrics(); [weak refresh]; [weak setNeedsLayout]; }];
     _queue = [self button:@"list.bullet" size:22 title:@"Queue" action:^{ [weak activate:@"QueueButtonNowPlaying" key:&kQueueKey]; }];
@@ -162,11 +165,25 @@ CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).l
     _repeat.glyph.tintColor = state.options.repeatingContext || state.options.repeatingTrack ? SGRAccent() : SGRSecondary();
     _lyrics.enabled = SGRPlayerLyricsAvailable() || SGRPlayerLyricsOpen();
     [_lyrics.glyph setSymbol:SGRPlayerLyricsOpen() ? @"quote.bubble.fill" : @"quote.bubble" animated:NO];
-    UIView *save = SGRFindByIdentifier(self.host, @"AddButtonNowPlaying", &kSaveKey);
-    _save.enabled = save != nil;
+    // player/01.txt and binary refs 0x101caa42c / 0x106906794: the actual element
+    // identifier is Components.UI.AddToButton, not the accessibility resource AddButtonNowPlaying.
+    UIView *save = SGRFindByIdentifier(self.host, @"Components.UI.AddToButton", &kSaveKey);
+    __block UIControl *control = nil;
+    SGForEachView(save, ^(UIView *view) { if (!control && [view isKindOfClass:UIControl.class]) control = (UIControl *)view; });
+    _save.enabled = save && (!control || control.enabled);
     if (save.accessibilityLabel.length) _save.accessibilityLabel = save.accessibilityLabel;
-    BOOL added = [save isKindOfClass:UIControl.class] && ((UIControl *)save).selected;
-    [_save.glyph setSymbol:added ? @"checkmark.circle.fill" : @"plus.circle" animated:NO];
+    BOOL added = control.selected;
+    NSString *label = save.accessibilityLabel ?: control.accessibilityLabel;
+    if (save && save.bounds.size.width > 0 && save.bounds.size.height > 0 &&
+        (_saveSource != save || ![_saveLabel isEqualToString:label ?: @""] || _saveSelected != added)) {
+        _saveSource = save;
+        _saveLabel = [label ?: @"" copy];
+        _saveSelected = added;
+        UIImage *icon = [[[UIGraphicsImageRenderer alloc] initWithSize:save.bounds.size] imageWithActions:^(UIGraphicsImageRendererContext *renderer) {
+            [save.layer renderInContext:renderer.CGContext];
+        }];
+        _save.glyph.image = [icon imageWithRenderingMode:UIImageRenderingModeAlwaysOriginal];
+    }
     [self tick];
 }
 - (void)tick {
@@ -280,6 +297,7 @@ void SGRPlayerLandscapeUnit(UIViewController *unit) {
     SGRPlayerLandscapeLayout(host);
     SGRLandscapePanel *panel = objc_getAssociatedObject(host, &kPanelKey);
     [panel.units addObject:view];
+    if ([NSStringFromClass(unit.class) containsString:@"Information"]) [panel refresh];
     if ([NSStringFromClass(unit.class) containsString:@"Information"] && [view.superview isKindOfClass:UIStackView.class]) {
         [panel.units addObject:view.superview];
         maskUnit(view.superview, SGRPlayerLandscape(host));

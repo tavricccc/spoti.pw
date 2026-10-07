@@ -6,7 +6,7 @@
 
 - iPad 播放頁的 `now-playing-toggle-button` 固定透明，觸控與輔助使用入口停用；原生 minimize 按鈕保留。初始模式固定為 `Collapsed`。
 - Regular 播放器在 Regular size class 下收到開啟全螢幕要求時，改用原生 side attachment 呈現 Split。已有 expanded overlay 時先透過原生 completion 關閉，再呈現 Split；保留呼叫端 completion。Compact 播放器不改動。移除旋轉完成後額外收合一次的處理。
-- iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。MainUIContainer 收到旋轉目標尺寸時立即更新 override，不再只等被全螢幕播放頁蓋住的 tab bar 排版。旋轉期間的 tab bar 回呼使用目標尺寸；完成後重新使用實際 window 尺寸。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
+- iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。MainUIContainer 收到旋轉目標尺寸時立即更新 override，不再只等被全螢幕播放頁蓋住的 tab bar 排版。移除 tab bar 更新入口，改在 UIWindow 的公開 layoutSubviews 同步環境；即使全螢幕呈現移除主容器的 view，window 自身仍能更新。旋轉期間使用目標尺寸；完成後重新使用實際 window 尺寸。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
 - 移除直／橫向初始全螢幕設定、自製橫向播放器、額外收合箭頭／手勢、直向 split 控制群位移。旧設定不再讀取。
 - Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據實際玻璃 bar 寬高與文字大小隱藏／還原標籤；上下排圖示與文字時，額外保留 8pt 間距及上下留白。窄視窗擠壓時自動隱藏，不再只量 Spotify 外層面板寬度。
 

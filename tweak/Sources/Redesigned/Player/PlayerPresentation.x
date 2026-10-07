@@ -39,13 +39,12 @@ static void SGRApplyTabletSizeClass(UIWindow *window, CGSize size) {
 }
 %end
 
-%hook _TtC23NavigationUI_TabBarImpl19TabBarContainerImpl
-- (void)viewWillLayoutSubviews {
-    UIWindow *window = ((UIViewController *)self).viewIfLoaded.window;
-    if (window) {
-        NSValue *targetSize = objc_getAssociatedObject(window, &SGRTabletTransitionSizeKey);
-        SGRApplyTabletSizeClass(window, targetSize ? targetSize.CGSizeValue : window.bounds.size);
-    }
+// Public UIWindow layout also runs when a full-screen presentation removes
+// its presenting controller's view from the window hierarchy.
+%hook UIWindow
+- (void)layoutSubviews {
+    NSValue *targetSize = objc_getAssociatedObject(self, &SGRTabletTransitionSizeKey);
+    SGRApplyTabletSizeClass(self, targetSize ? targetSize.CGSizeValue : self.bounds.size);
     %orig;
 }
 %end
@@ -60,5 +59,5 @@ static void SGRApplyTabletSizeClass(UIWindow *window, CGSize size) {
         return SGRedesignedUIStored() && [flag isEqualToString:key] ? @"Collapsed" : nil;
     });
     %init;
-    SGRequireClasses(@[@"_TtC23NavigationUI_TabBarImpl19TabBarContainerImpl", @"_TtC19MainUI_TabBarUIImpl15MainUIContainer"]);
+    SGRequireClasses(@[@"_TtC19MainUI_TabBarUIImpl15MainUIContainer"]);
 }

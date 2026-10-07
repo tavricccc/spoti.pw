@@ -21,6 +21,8 @@
 //     PlayerLyricsContent.m  native cover masks and context captions restored as the lyrics close
 //     PlayerGestures.x   the gestures' hookup
 //     PlayerPresentation.x  iPad portrait Compact traits, native split in wide windows
+//     PlayerExpandButton.x  the actual native toggle control removed at its UIControl entry
+//     PlayerTabletTransition.x  native overlay dismissal and side-pane presentation after rotation
 //     PlayerMorph.x      the open and close grown out of the now playing bar's card, the cover flown
 //
 // A Spotify Free account with pick and shuffle gets the player in another mode (NowPlayingReinventFreeMode),

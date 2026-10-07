@@ -4,7 +4,7 @@
 
 ## 設定
 
-- Mod Settings → Player → iPad player：`Full screen in portrait`、`Full screen in landscape` 分開控制直向與橫向是否自動展開播放頁。預設皆關閉；修改後重啟 Spotify。方向依目前視窗尺寸判斷，因此也適用 iPad 多工視窗。
+- Mod Settings → Player → iPad player：`Full screen in portrait`、`Full screen in landscape` 分開控制直向與橫向首次開啟播放頁時是否使用 Expanded。預設皆關閉；修改後重啟 Spotify。方向依目前視窗尺寸判斷；播放頁已開啟時轉向，請收合並重新開啟，套用新方向的初始設定。這不是關閉整個 tablet 排版的開關。
 - Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據目前導覽列所在面板的寬度與文字大小隱藏／還原標籤，立即生效。原 Hide labels 設定會遷移到新選項。
 
 全螢幕播放頁向下滑會觸發 Spotify 原生收合按鈕；目前是放開手指後收合，不是跟隨手指的互動轉場。歌詞捲動保留原用途，開啟歌詞時從頂部下滑收合；VoiceOver 開啟時使用收合按鈕。
@@ -22,11 +22,23 @@
 - 已按讚歌曲使用單次繪製的藍紫漸層白色愛心封面，供既有 full-bleed hero 與背景色場讀取；它不是從一般 playlist UIImageView 載入的封面。
 - 停用自動更新、贊助與證書推銷提示，以及對應推銷列；手動 Updates 頁保留。
 
+## 橫向播放器與歌詞
+
+Redesigned 的手機與 iPad 全螢幕橫向播放器使用相同版型：沒有開歌詞時，封面、歌名、進度、播放控制及音量置中；開歌詞時改為左側封面／控制欄、右側歌詞。矮的手機視窗會縮小封面，五個播放按鈕仍各有至少 44pt 的觸控範圍。裝置、歌詞、佇列放在畫面底部。
+
+橫向歌詞不啟動閒置隱藏控制項的計時器。直向歌詞閒置時，只淡出操作按鈕與進度／播放／音量群，保留歌名與 48pt 小封面；歌名與作者也縮小。第一個觸控會還原控制群。
+
+橫向欄位是 Redesigned 自己的 views，原生 units 留在原位並暫時遮罩，回直向會還原遮罩與可操作狀態。播放／跳曲／shuffle／repeat／seek 使用既有 Spotify 播放服務；更多、收藏、裝置、佇列與收合仍呼叫原生控制。只有畫面顯示且 app 前景時，每 0.5 秒更新進度，沒有增加 display link。
+
 ## Binary 依據
 
 以使用者提供的已解密 IPA 查核，main binary UUID：`c712370b-44cd-35c8-a058-4fbed1ad0758`，cryptid 為 0。切換按鈕 identifier `expand_collapse_button` 的字串位址是 `0x10a45cbc0`，引用包括 `0x1014fb32c`、`0x105bbff38`、`0x1079f02d8`。
 
-全螢幕設定呼叫已存在按鈕的原生動作；沒有修改 `sideAttachment` 或偽造 `isActive`。binary 顯示 `sideAttachment` 為必要容器值，直接返回 nil 會進入 trap。
+初始模式 flag 是 `ios-adaptivelayout-experimentationmanager.now_playing_view_initial_mode`，enum 值為 `Expanded`／`Collapsed`，預設 `Collapsed`。properties initializer `0x1055a1944` 讀取它；字串 switch table `0x10d11f218`／`0x10d11f228` 對應 Expanded=0／Collapsed=1；Swift getter `0x10636cf90` 直接讀取 properties 的 `nowPlayingViewInitialMode` byte ivar。這版依視窗方向更新這個已確認欄位（用 runtime ivar offset，限定 9.1.78），取代先前無效的自動點擊切換按鈕。兩個方向都啟用時，同時透過現有 flag registry 強制 Expanded。
+
+尚未找到一個能可靠停用整個 tablet／side attachment 排版的 flag。沒有修改 `sideAttachment` 或偽造 `isActive`；binary 顯示 `sideAttachment` 是必要容器值，直接返回 nil 會進入 trap。
+
+手機原 IPA 的 `UISupportedInterfaceOrientations` 只有 Portrait；現在加入兩個 landscape 方向，並在 Redesigned 下擴充 AppDelegate（`0x106ccb640`）、SPNavigationController（`0x1010921a4`）及播放頁的方向限制。旋轉仍遵守系統的直向鎖定。
 
 ## Build 與實機檢查
 
@@ -41,3 +53,5 @@ Windows 本機已檢查 Logos 預處理、來源分層與 shell 語法；沒有 
 3. 直向分割播放頁的控制群應移到下方；歌詞、Connect、queue 應顯示並可點。切換歌詞與封面時不應露出原生封面／重疊 context 標題。
 4. Navbar 選 Auto，調整視窗寬度，標籤應在空間不足時消失，變寬後恢復。
 5. 首頁工具列不應遮住帳號按鈕；開啟已按讚歌曲應看到漸層愛心封面與帶色背景。
+6. 手機關閉系統直向鎖定，開啟播放器後轉橫向；封面／控制群應置中，開歌詞後改成左右兩欄，等待超過四秒仍保留控制群。回直向後等待四秒，應保留縮小的歌名與小封面，淡出其他操作控制。
+7. 在橫向版型操作播放、跳曲、seek、shuffle、repeat、音量、收藏、更多、裝置、佇列，再切回直向；確認音訊狀態與原生控制一致，沒有不可見的觸控區擋住歌詞。

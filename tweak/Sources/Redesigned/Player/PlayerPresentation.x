@@ -51,7 +51,9 @@ static void applyMode(id properties, BOOL portrait) {
     sg_modes = [NSMapTable weakToStrongObjectsMapTable];
     if (sg_portrait && sg_landscape) SGRegisterFlagForcer(YES, ^id(NSString *key) {
         return [key isEqualToString:kInitialMode] ? @"Expanded" : nil;
-    }, nil);
+    }, ^id(NSString *key) {
+        return SGRedesignedUIStored() && SGHidden(SGRKeyTabletPortraitFullscreen) && SGHidden(SGRKeyTabletLandscapeFullscreen) && [key isEqualToString:kInitialMode] ? @"Expanded" : nil;
+    });
     %init;
     SGRequireClasses(@[@"_TtC41AdaptiveLayout_ExperimentationManagerImpl54SPTAdaptiveLayout_ExperimentationManagerImplProperties"]);
 }

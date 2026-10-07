@@ -21,6 +21,7 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Home.h"
+#import "HomeSpacing.h"
 
 // Tries at finding the tab's name before settling for the English one: a miss walks the window.
 static const NSUInteger kTitleTries = 8;
@@ -156,6 +157,7 @@ static void layoutHeader(UIViewController *page) {
         }
     } else if (face && !CGAffineTransformIsIdentity(face.transform)) face.transform = CGAffineTransformIdentity;
     if (!CGRectEqualToRect(title.frame, frame)) title.frame = frame;
+    SGRHomeReserveToolbarSpace(page);
 
     static dispatch_once_t once;
     dispatch_once(&once, ^{

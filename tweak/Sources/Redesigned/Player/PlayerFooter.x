@@ -22,6 +22,7 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
+#import "PlayerTabletLayout.h"
 
 static const CGFloat kLyricsGlyphSize = 20;
 // Filled and at full strength while the lyrics are up, the way the Music app marks the control that is on.
@@ -173,6 +174,7 @@ static void lowerRow(UIView *row) {
 
     if (tablet) {
         [((SGRFooterReach *)objc_getAssociatedObject(row, &kReachKey)) removeFromSuperview];
+        SGRPlayerTabletLayoutFooter(row);
         return;
     }
 

@@ -1034,6 +1034,18 @@ typedef struct {
 @interface SGRKaraokeView () <UIScrollViewDelegate>
 @end
 
+@interface SGRKaraokeView ()
+- (void)tick;
+@end
+
+@interface SGRKaraokeTicker : NSObject
+@property (nonatomic, weak) SGRKaraokeView *view;
+@end
+
+@implementation SGRKaraokeTicker
+- (void)tick:(CADisplayLink *)link { [self.view tick]; }
+@end
+
 @implementation SGRKaraokeView {
     UIScrollView *_scroll;
     BOOL _browsing;
@@ -1084,6 +1096,7 @@ typedef struct {
     // The room the lines have (lineInsets), and the fade's edges on their way to it from _bandFrom.
     UIEdgeInsets _band, _bandFrom;
     CFTimeInterval _bandSince, _bandFor;
+    CGFloat _laidOutHeight;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -1133,6 +1146,7 @@ typedef struct {
 }
 
 - (void)dealloc {
+    [_link invalidate];
     [NSNotificationCenter.defaultCenter removeObserver:self];
     free(_spans);
     free(_breaks);
@@ -1221,9 +1235,11 @@ typedef struct {
     [NSObject cancelPreviousPerformRequestsWithTarget:self selector:@selector(followSong) object:nil];
     if (!_browsing) return;
     _browsing = NO;
-    [UIView animateWithDuration:0.7 delay:0 usingSpringWithDamping:0.9 initialSpringVelocity:0
+    void (^follow)(void) = ^{ self->_scroll.contentOffset = CGPointZero; };
+    if (SGRReduceMotion()) [UIView performWithoutAnimation:follow];
+    else [UIView animateWithDuration:0.7 delay:0 usingSpringWithDamping:0.9 initialSpringVelocity:0
                         options:UIViewAnimationOptionAllowUserInteraction
-                     animations:^{ self->_scroll.contentOffset = CGPointZero; } completion:nil];
+                     animations:follow completion:nil];
     [self placeLinesAnimated:YES];
 }
 
@@ -1260,7 +1276,9 @@ typedef struct {
 - (void)startLink {
     if (!self.window || _link) return;
     if (UIApplication.sharedApplication.applicationState != UIApplicationStateActive) return;
-    _link = [CADisplayLink displayLinkWithTarget:self selector:@selector(tick)];
+    SGRKaraokeTicker *ticker = [SGRKaraokeTicker new];
+    ticker.view = self;
+    _link = [CADisplayLink displayLinkWithTarget:ticker selector:@selector(tick:)];
     _link.preferredFrameRateRange = CAFrameRateRangeMake(80, 120, 120);
     [_link addToRunLoop:NSRunLoop.mainRunLoop forMode:NSRunLoopCommonModes];
 }
@@ -1303,7 +1321,13 @@ typedef struct {
         _extras.frame = CGRectMake(_margin, bottom - kExtrasSide - kExtrasBottom, kExtrasSide, kExtrasSide);
         _credit.center = CGPointMake(CGRectGetMaxX(_extras.frame) + kExtrasCreditGap + _credit.bounds.size.width / 2, _extras.center.y);
     }
+    BOOL heightChanged = _laidOutHeight != self.bounds.size.height;
+    _laidOutHeight = self.bounds.size.height;
     if (_lines && self.bounds.size.width != _builtWidth) [self rebuild];
+    else if (_tops.count && heightChanged) {
+        _sightArrangement = NSUIntegerMax;
+        [self placeLinesAnimated:NO];
+    }
 }
 
 #pragma mark - the lines' room
@@ -1642,6 +1666,7 @@ typedef struct {
 // below, lit; the stack moves on to it once the line at the anchor is sung out.
 - (void)placeLinesAnimated:(BOOL)animated {
     if (_browsing || !_tops.count) return;
+    animated = animated && !SGRReduceMotion();
     _focusTop = _tops[(NSUInteger)MAX(_focus, 0)].doubleValue;
     [self showLinesInSight];
     for (NSNumber *key in _shown) [self placeLine:_shown[key] at:key.integerValue animated:animated];

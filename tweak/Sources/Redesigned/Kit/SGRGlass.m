@@ -40,7 +40,7 @@ static char kInsideModeKey, kFilmKey;
 // The film that makes a shape prominent, inside the effect's own content view so the corners clip it.
 static void keepFilm(UIView *shape, BOOL prominent, SGRGlassMode mode) {
     if (mode == SGRGlassModeSolid) {
-        shape.backgroundColor = prominent ? [SGRSolidGlassFill() colorWithAlphaComponent:0.26] : SGRSolidGlassFill();
+        shape.backgroundColor = prominent ? [UIColor colorWithWhite:0.26 alpha:1] : SGRSolidGlassFill();
         return;
     }
     UIView *film = objc_getAssociatedObject(shape, &kFilmKey);

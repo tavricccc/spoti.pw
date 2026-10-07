@@ -41,7 +41,7 @@ UIColor *SGRNeutralField(void) {
 }
 
 UIColor *SGRSolidGlassFill(void) {
-    return [UIColor colorWithWhite:1 alpha:0.16];
+    return [UIColor colorWithWhite:0.16 alpha:1];
 }
 
 UIColor *SGRHairline(void) {

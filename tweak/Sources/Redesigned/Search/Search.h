@@ -7,7 +7,8 @@
 //                       cards below move up by the spacing the collapsed ones leave
 //     SearchPage.x      the header the way Home has it: a large title, the avatar at the trailing edge, no camera, no
 //                       scrim; and the page's layout pass, which measures that spacing
-//     SearchCards.x     each category card as Liquid Glass tinted by its own colour, at the card radius, giving under a press
+//     SearchCards.x     category cards on their own colour gradients, rounded and giving under a press;
+//                       glass is reserved for the search field and navigation
 //
 // Every hook installs only while Redesigned UI is on (SGRedesignedUI).
 // Threading: main thread only.

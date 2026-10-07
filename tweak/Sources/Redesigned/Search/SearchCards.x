@@ -1,12 +1,6 @@
-// Search redesign: each category card as Liquid Glass tinted by its own colour. Under the glass, the card's colour runs
-// diagonally from itself at the top leading corner to a darker shade of it at the bottom trailing one; the glass is the
-// clear style with that colour at 35% for its tint, so its rim catches the colour and its body stays as vivid as
-// Spotify's card. The cover and the title stay Spotify's, over the glass. The card takes the card radius, continuous;
-// the title moves in with it; and the card gives a little under a press, which Spotify showed by darkening the colour
-// the glass now covers. Picked on the iOS 27 simulator against plain tinted glass (flat on black), regular glass over
-// the colour (muddy) and the cover under clear glass (smeared), 2026-09-17.
-//
-// Under Reduce Transparency, or before iOS 26, the card is the colour alone.
+// Search categories are content: a diagonal gradient in Spotify's own category colour,
+// with its original cover and title. Glass remains on navigation and controls rather
+// than allocating a backdrop effect for every card in the scrolling grid.
 //
 // Tree (trees/clean/search/01.txt:332-339): Control<Box> id=Components.UI.CategoryCardBrowse 177x108 >
 // Encore.Box 177x108 clips > UIView r=4 clips (the Box's content view) > Encore.ImageView (the cover, turned 25 degrees
@@ -18,8 +12,7 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Search.h"
 
-// The tint the glass takes of the card's colour, and how dark the far corner of the colour under it gets.
-static const CGFloat kTintAlpha = 0.35;
+// How dark the far corner of the card's colour gets.
 static const CGFloat kFarBrightness = 0.55;
 // Where the title's top leading corner moves to, clear of the larger corner.
 static const CGFloat kTitleInset = 12;
@@ -42,7 +35,6 @@ static char kPartsKey, kRoundedKey;
 
 @interface SGRSearchCardParts : NSObject
 @property (nonatomic) SGRSearchCardPlate *plate;
-@property (nonatomic) UIVisualEffectView *glass;
 @property (nonatomic) UIColor *color;
 @end
 
@@ -69,7 +61,7 @@ static CAShapeLayer *fillLayerOf(UIView *box) {
     return nil;
 }
 
-// Any other shape layer of the Box's that paints goes too: the glass is the card's only surface.
+// The gradient plate replaces the Box's original fill.
 static void hideFills(UIView *box) {
     for (CALayer *layer in box.layer.sublayers) {
         if (![layer isKindOfClass:CAShapeLayer.class] || [layer.delegate isKindOfClass:UIView.class] || layer.hidden) continue;
@@ -97,12 +89,6 @@ static UIColor *darker(UIColor *color) {
     return [UIColor colorWithHue:hue saturation:saturation brightness:brightness * kFarBrightness alpha:alpha];
 }
 
-static BOOL glassAllowed(void) {
-    if (SGRReduceTransparency()) return NO;
-    if (@available(iOS 26.0, *)) return YES;
-    return NO;
-}
-
 static SGRSearchCardParts *partsIn(UIView *box, UIView *content) {
     SGRSearchCardParts *parts = objc_getAssociatedObject(box, &kPartsKey);
     if (!parts) {
@@ -119,19 +105,6 @@ static SGRSearchCardParts *partsIn(UIView *box, UIView *content) {
     }
     // Behind the cover and the title whatever order Spotify keeps its own views in, by depth.
     if (parts.plate.superview != content) [content insertSubview:parts.plate atIndex:0];
-    if (glassAllowed() && !parts.glass) {
-        UIVisualEffectView *glass = [UIVisualEffectView new];
-        // Dark like every glass of the redesign's, rather than by grace of the navigation stack Spotify
-        // hosts the page in (Navbar/TabBar.x).
-        glass.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
-        glass.userInteractionEnabled = NO;
-        glass.accessibilityElementsHidden = YES;
-        glass.layer.zPosition = -1;
-        parts.glass = glass;
-        parts.color = nil;
-    }
-    if (parts.glass && parts.glass.superview != content) [content insertSubview:parts.glass aboveSubview:parts.plate];
-    if (parts.glass) parts.glass.hidden = !glassAllowed();
     return parts;
 }
 
@@ -139,13 +112,6 @@ static void paint(SGRSearchCardParts *parts, UIColor *color) {
     if (parts.color && CGColorEqualToColor(parts.color.CGColor, color.CGColor)) return;
     parts.color = color;
     ((CAGradientLayer *)parts.plate.layer).colors = @[(id)color.CGColor, (id)darker(color).CGColor];
-    if (@available(iOS 26.0, *)) {
-        if (parts.glass) {
-            UIGlassEffect *effect = [UIGlassEffect effectWithStyle:UIGlassEffectStyleClear];
-            effect.tintColor = [color colorWithAlphaComponent:kTintAlpha];
-            parts.glass.effect = effect;
-        }
-    }
 }
 
 // The title's own position, before the move, is where Spotify's layout put its centre.
@@ -186,7 +152,7 @@ static void style(UIView *box) {
 
     // The card is cut at the card radius by the Box, which clips already and which Spotify gives no radius. Spotify puts
     // its own 4pt back on the content view between layout passes, and the colour and the cover then showed past the glass
-    // at the corners (on the phone, 2026-09-17); the content view keeps the card radius only for as long as it lasts.
+    // at the corners; the content view keeps the card radius only for as long as it lasts.
     if (content.layer.cornerRadius != SGRRadiusCard && objc_getAssociatedObject(box, &kRoundedKey)) {
         logOnce([NSString stringWithFormat:@"Spotify set a card's content radius back to %.0f; the Box's corner holds", content.layer.cornerRadius]);
     }
@@ -196,13 +162,9 @@ static void style(UIView *box) {
     roundCorners(content, SGRRadiusCard);
     CGRect bounds = content.bounds;
     if (!CGRectEqualToRect(parts.plate.frame, bounds)) parts.plate.frame = bounds;
-    if (parts.glass && !CGRectEqualToRect(parts.glass.frame, bounds)) {
-        parts.glass.frame = bounds;
-        SGShapeGlass(parts.glass, SGRRadiusCard, NO);
-    }
     moveTitleIn(content);
     roundCover(content);
-    logOnce(parts.glass ? @"category cards on tinted glass" : @"category cards on their colour, no glass");
+    logOnce(@"category cards on their colour, no glass");
 }
 
 %hook _TtCE16Encore_LayoutKitO16EncoreFoundation6Encore3Box

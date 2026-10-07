@@ -666,6 +666,7 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
 
 - (UITableViewCell *)tableView:(UITableView *)table cellForRowAtIndexPath:(NSIndexPath *)path {
     UITableViewCell *cell = SGDequeueCell(table, @"navbar");
+    cell.accessoryType = UITableViewCellAccessoryNone;
     switch (path.section) {
         case SGRNavbarSectionSwitch: {
             BOOL labels = path.row == 1, inlinePlayer = path.row == 2;
@@ -676,11 +677,11 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
                 break;
             }
             if (inlinePlayer) SGFillCell(cell, @"Apple Music style player", @"Moves in beside the tabs on scroll. Restart to apply", nil, nil);
-            else SGFillCell(cell, labels ? @"Hide labels" : @"Custom navbar", labels ? @"Icons only" : nil, nil, nil);
+            else SGFillCell(cell, @"Custom navbar", nil, nil, nil);
             UISwitch *toggle = [UISwitch new];
             toggle.onTintColor = SGGreen();
             toggle.tag = path.row;
-            toggle.on = inlinePlayer ? SGHidden(SGRKeyInlinePlayer) : labels ? SGHidden(SGRKeyNavbarHideLabels) : SGEnabled(SGRKeyNavbar);
+            toggle.on = inlinePlayer ? SGHidden(SGRKeyInlinePlayer) : SGEnabled(SGRKeyNavbar);
             [toggle addTarget:self action:@selector(toggled:) forControlEvents:UIControlEventValueChanged];
             cell.accessoryView = toggle;
             break;
@@ -770,7 +771,7 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
         SGSetEnabled(SGRKeyInlinePlayer, toggle.on);
         return;
     }
-    SGSetEnabled(toggle.tag == 1 ? SGRKeyNavbarHideLabels : SGRKeyNavbar, toggle.on);
+    SGSetEnabled(SGRKeyNavbar, toggle.on);
     SGRRefreshTabBar();
 }
 

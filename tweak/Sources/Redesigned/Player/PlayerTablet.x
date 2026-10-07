@@ -7,7 +7,7 @@
 #import "Player.h"
 #import "PlayerTablet.h"
 
-static char kPolicyKey, kAppliedKey, kPanKey, kExpandKey, kCloseKey;
+static char kPolicyKey, kAppliedKey, kPanKey, kExpandKey, kCloseKey, kExpandStateKey;
 static BOOL sg_portraitFull, sg_landscapeFull;
 
 static BOOL tablet(UIView *view) {
@@ -45,9 +45,19 @@ void SGRPlayerTabletHeaderLaidOut(UIViewController *unit) {
     UIView *expand = SGRFindByIdentifier(header, @"expand_collapse_button", &kExpandKey);
     if (!expand) return;
     // Full-screen-only mode offers no way back to the split pane in this orientation.
-    expand.alpha = wanted && fullPane(host) ? 0 : 1;
-    expand.userInteractionEnabled = expand.alpha > 0;
-    expand.accessibilityElementsHidden = expand.alpha == 0;
+    NSDictionary *state = objc_getAssociatedObject(expand, &kExpandStateKey);
+    if (wanted && fullPane(host)) {
+        if (!state) objc_setAssociatedObject(expand, &kExpandStateKey,
+            @{@"alpha":@(expand.alpha), @"touch":@(expand.userInteractionEnabled), @"accessibility":@(expand.accessibilityElementsHidden)}, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        expand.alpha = 0;
+        expand.userInteractionEnabled = NO;
+        expand.accessibilityElementsHidden = YES;
+    } else if (state) {
+        expand.alpha = [state[@"alpha"] doubleValue];
+        expand.userInteractionEnabled = [state[@"touch"] boolValue];
+        expand.accessibilityElementsHidden = [state[@"accessibility"] boolValue];
+        objc_setAssociatedObject(expand, &kExpandStateKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     NSNumber *applied = objc_getAssociatedObject(host, &kAppliedKey);
     if (applied.integerValue == policy) return;
     objc_setAssociatedObject(host, &kAppliedKey, @(policy), OBJC_ASSOCIATION_RETAIN_NONATOMIC);

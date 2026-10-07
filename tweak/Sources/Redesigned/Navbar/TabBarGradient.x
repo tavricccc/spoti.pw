@@ -6,8 +6,8 @@
 
 %hook _TtC23NavigationUI_TabBarImpl18TabBarGradientView
 - (id)initWithFrame:(CGRect)frame {
-    UIView *view = %orig;
-    view.alpha = 0;
+    id view = %orig;
+    ((UIView *)view).alpha = 0;
     return view;
 }
 - (void)setAlpha:(CGFloat)alpha {

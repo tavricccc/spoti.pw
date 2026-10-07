@@ -1193,18 +1193,18 @@ static UIView *viewWithIdentifier(UIView *root, NSString *identifier) {
         NSLog(@"[harness] 12 the press landed on %@, the thumbnail says %@ (%@)", NSStringFromClass(hit.class), thumb.accessibilityLabel,
               thumb.accessibilityTraits & UIAccessibilityTraitButton ? @"a button" : @"NOT A BUTTON");
     });
-    // Alone, the thumbnail's spot only brings the controls back.
+    // Portrait idle keeps the heading and cover visible; the first touch restores the transport.
     after(14.4, ^{ SGRPlayerToggleLyrics(); });
     after(20.2, ^{
         UIView *stack = viewWithIdentifier(window, @"npv.bottomStackView");
         UIView *thumb = viewOfClass(window, @"SGRPlayerLyricsThumb");
-        [self expect:SGRPlayerLyricsOpen() && stack.alpha < 0.01 && thumb.alpha < 0.01
-                that:[NSString stringWithFormat:@"13 the lines alone (stack %.2f, thumbnail %.2f)", stack.alpha, thumb.alpha]];
+        [self expect:SGRPlayerLyricsOpen() && stack.alpha > 0.99 && thumb.alpha > 0.99 && self->_controlsView.alpha < 0.01
+                that:[NSString stringWithFormat:@"13 portrait idle keeps heading/cover (stack %.2f, thumbnail %.2f, transport %.2f)", stack.alpha, thumb.alpha, self->_controlsView.alpha]];
         NSUInteger lines = SGRHarnessLineSeeks(), ended = unit.ended;
         UIView *hit = SGRHarnessTap(window, [self middleOf:thumb], ^{
             after(0.5, ^{
-                [self expect:SGRPlayerLyricsOpen() && stack.alpha > 0.99 && SGRHarnessLineSeeks() == lines && unit.ended == ended
-                        that:[NSString stringWithFormat:@"14 a tap on the faded thumbnail: lyrics %@, controls %.2f, no seek", SGRPlayerLyricsOpen() ? @"still up" : @"CLOSED", stack.alpha]];
+                [self expect:SGRPlayerLyricsOpen() && self->_controlsView.alpha > 0.99 && SGRHarnessLineSeeks() == lines && unit.ended == ended
+                        that:[NSString stringWithFormat:@"14 a tap on the visible thumbnail restores controls: lyrics %@, controls %.2f, no seek", SGRPlayerLyricsOpen() ? @"still up" : @"CLOSED", self->_controlsView.alpha]];
             });
         });
         NSLog(@"[harness] 14 the tap landed on %@", NSStringFromClass(hit.class));

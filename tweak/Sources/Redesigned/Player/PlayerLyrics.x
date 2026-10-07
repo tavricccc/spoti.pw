@@ -406,7 +406,7 @@ static void fadeControl(UIView *view, CGFloat alpha) {
 static void showControls(CGFloat alpha, SGRPlayerLyricsOverlay *overlay) {
     fadeControl(sg_header.viewIfLoaded, alpha);
     UIView *stack = sg_info.viewIfLoaded.superview;
-    if ([stack isKindOfClass:UIStackView.class]) for (UIView *view in ((UIStackView *)stack).arrangedSubviews)
+    if ([stack isKindOfClass:UIStackView.class]) for (UIView *view in stack.subviews)
         if (view != sg_info.viewIfLoaded) fadeControl(view, alpha);
     SGForEachView(sg_info.viewIfLoaded, ^(UIView *view) {
         if ([view isKindOfClass:UIControl.class]) fadeControl(view, alpha);

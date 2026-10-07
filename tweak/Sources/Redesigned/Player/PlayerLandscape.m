@@ -28,13 +28,23 @@ static SGRLandscapeGeometry geometry(UIView *host, BOOL lyrics) {
     CGFloat bottom = height - safe.bottom - 44;
     CGFloat column = MIN(420, lyrics ? (width - safe.left - safe.right - margin * 3) * 0.40 : width * 0.5);
     CGFloat side = MIN(column, MAX(80, bottom - top - (compact ? 168 : 250)));
-    CGFloat left = lyrics ? safe.left + margin : (width - side) / 2;
-    CGRect cover = CGRectMake(left, top, side, side);
-    CGFloat lyricsLeft = CGRectGetMaxX(cover) + margin;
+    // Short phone windows need a smaller cover but five separate 44pt transport targets.
+    CGFloat controlsWidth = MAX(220, side);
+    CGFloat left = lyrics ? safe.left + margin : (width - controlsWidth) / 2;
+    CGRect cover = CGRectMake(left + (controlsWidth - side) / 2, top, side, side);
+    CGFloat lyricsLeft = left + controlsWidth + margin;
     CGRect lines = CGRectMake(lyricsLeft, top, MAX(0, width - safe.right - margin - lyricsLeft), bottom - top);
-    return (SGRLandscapeGeometry){cover, lines, left, side, bottom, compact};
+    return (SGRLandscapeGeometry){cover, lines, left, controlsWidth, bottom, compact};
 }
 CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).lyrics; }
+
+@interface SGRLandscapeSlider : UISlider
+@end
+@implementation SGRLandscapeSlider
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event {
+    return CGRectContainsPoint(CGRectInset(self.bounds, 0, -10), point);
+}
+@end
 
 @interface SGRLandscapePanel : UIView <SGPlayerStateObserver>
 @property (nonatomic, weak) UIView *host;
@@ -81,7 +91,7 @@ CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).l
     _elapsed = [self label:11 weight:UIFontWeightRegular color:SGRSecondary()];
     _remaining = [self label:11 weight:UIFontWeightRegular color:SGRSecondary()];
     _remaining.textAlignment = NSTextAlignmentRight;
-    _progress = [UISlider new];
+    _progress = [SGRLandscapeSlider new];
     _progress.minimumTrackTintColor = SGRPrimary();
     _progress.maximumTrackTintColor = [UIColor colorWithWhite:1 alpha:0.25];
     [_progress addTarget:self action:@selector(seek:) forControlEvents:UIControlEventTouchUpInside | UIControlEventTouchUpOutside];

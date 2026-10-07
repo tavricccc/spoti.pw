@@ -846,6 +846,10 @@ static void pass(SGRPlayerMenuTakeover *t) {
     UIViewController *menu = t.menu;
     if (!t.sheet) t.sheet = presentedSheet(menu);
     if (!t.player) t.player = t.sheet.presentingViewController;
+    if (t.sheet) {
+        objc_setAssociatedObject(t.sheet, &kTakenKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(t.sheet, &kClaimKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     UIView *container = t.sheet.presentationController.containerView;
     if (container) hideSheet(t, container);
 
@@ -936,7 +940,10 @@ static SGRPlayerMenuTakeover *takeoverFor(UIViewController *menu) {
     t.menu = menu;
     t.button = sgr_moreButton;
     UIViewController *sheet = presentedSheet(menu);
-    if (sheet) objc_setAssociatedObject(sheet, &kTakenKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    if (sheet) {
+        objc_setAssociatedObject(sheet, &kTakenKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(sheet, &kClaimKey, @YES, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     objc_setAssociatedObject(menu, &kTakeoverKey, t, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     NSArray<SGRPlayerMenuSpotifyRow *> *last = lastRows();
     if (last.count) {

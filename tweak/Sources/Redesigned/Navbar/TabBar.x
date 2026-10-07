@@ -421,7 +421,9 @@ static void syncBar(UIView *stockBar) {
     NSArray<UIView *> *sources = tabItems(stockBar);
     if (!sources.count) return;
     // An item with no title is drawn by UIKit as its glyph alone, centred, on a bar of the same height.
-    BOOL hideLabels = SGHidden(SGRKeyNavbarHideLabels);
+    NSMutableArray<NSString *> *titles = [NSMutableArray array];
+    for (UIView *source in sources) [titles addObject:labelIn(source).text ?: @""];
+    BOOL hideLabels = !SGRNavbarLabelsFit(titles, stockBar.bounds.size.width);
 
     if (![sources isEqualToArray:bar.sources]) {
         NSMutableArray<UITabBarItem *> *items = [NSMutableArray array];
@@ -757,7 +759,9 @@ static void syncInline(UIView *stockBar) API_AVAILABLE(ios(26.0)) {
 
     NSArray<UIView *> *sources = tabItems(stockBar);
     if (!sources.count) return;
-    BOOL hideLabels = SGHidden(SGRKeyNavbarHideLabels);
+    NSMutableArray<NSString *> *titles = [NSMutableArray array];
+    for (UIView *source in sources) [titles addObject:labelIn(source).text ?: @""];
+    BOOL hideLabels = !SGRNavbarLabelsFit(titles, stockBar.bounds.size.width);
 
     if (![sources isEqualToArray:tabs.sources]) {
         NSMutableArray<UITab *> *list = [NSMutableArray array];
@@ -799,6 +803,8 @@ static void syncInline(UIView *stockBar) API_AVAILABLE(ios(26.0)) {
     }
     for (NSUInteger i = 0; i < sources.count && i < tabs.tabs.count; i++) {
         UITab *tab = tabs.tabs[i];
+        NSString *title = hideLabels ? @"" : titles[i];
+        if (![tab.title isEqualToString:title]) tab.title = title;
         BOOL active = modTab != NSNotFound ? i == modTab : isActive(sources[i]);
         if (active && !selected) selected = tab;
         UIImage *image = glyphOf(sources[i], active);

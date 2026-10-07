@@ -669,6 +669,12 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
     switch (path.section) {
         case SGRNavbarSectionSwitch: {
             BOOL labels = path.row == 1, inlinePlayer = path.row == 2;
+            if (labels) {
+                SGFillCell(cell, @"Labels", SGRNavbarLabelsTitle(), nil, nil);
+                cell.accessoryType = UITableViewCellAccessoryDisclosureIndicator;
+                cell.selectionStyle = UITableViewCellSelectionStyleDefault;
+                break;
+            }
             if (inlinePlayer) SGFillCell(cell, @"Apple Music style player", @"Moves in beside the tabs on scroll. Restart to apply", nil, nil);
             else SGFillCell(cell, labels ? @"Hide labels" : @"Custom navbar", labels ? @"Icons only" : nil, nil, nil);
             UISwitch *toggle = [UISwitch new];
@@ -733,7 +739,19 @@ typedef NS_ENUM(NSInteger, SGRNavbarSection) {
 
 - (void)tableView:(UITableView *)table didSelectRowAtIndexPath:(NSIndexPath *)path {
     [table deselectRowAtIndexPath:path animated:YES];
-    if (path.section == SGRNavbarSectionTabs) {
+    if (path.section == SGRNavbarSectionSwitch && path.row == 1) {
+        UIAlertController *alert = [UIAlertController alertControllerWithTitle:@"Navbar labels" message:@"Auto hides labels when the available pane is too narrow, and restores them when there is room." preferredStyle:UIAlertControllerStyleAlert];
+        NSArray<NSString *> *names = @[@"Show", @"Hide", @"Auto"];
+        for (NSUInteger i = 0; i < names.count; i++) {
+            [alert addAction:[UIAlertAction actionWithTitle:names[i] style:UIAlertActionStyleDefault handler:^(UIAlertAction *action) {
+                SGRSetNavbarLabels((SGRNavbarLabelsMode)i);
+                SGRRefreshTabBar();
+                [table reloadRowsAtIndexPaths:@[path] withRowAnimation:UITableViewRowAnimationNone];
+            }]];
+        }
+        [alert addAction:[UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleCancel handler:nil]];
+        [self presentViewController:alert animated:YES completion:nil];
+    } else if (path.section == SGRNavbarSectionTabs) {
         NSMutableDictionary *entry = _entries[(NSUInteger)path.row];
         entry[SGRNavbarHidden] = [entry[SGRNavbarHidden] boolValue] ? nil : @YES;
         [self save];

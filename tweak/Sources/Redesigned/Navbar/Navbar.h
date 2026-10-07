@@ -7,6 +7,13 @@
 #define SGRKeyNavbar @"spotifyglass.redesign.navbar"
 // Icons only on the glass bar. Off unless set; applies as soon as the bar lays out again.
 #define SGRKeyNavbarHideLabels @"spotifyglass.redesign.navbar.hideLabels"
+typedef NS_ENUM(NSInteger, SGRNavbarLabelsMode) {
+    SGRNavbarLabelsShow, SGRNavbarLabelsHide, SGRNavbarLabelsAuto
+};
+SGRNavbarLabelsMode SGRNavbarLabels(void);
+void SGRSetNavbarLabels(SGRNavbarLabelsMode mode);
+NSString *SGRNavbarLabelsTitle(void);
+BOOL SGRNavbarLabelsFit(NSArray<NSString *> *titles, CGFloat width);
 
 extern NSString *const SGRNavbarID;      // NSString, the entry's identity
 extern NSString *const SGRNavbarTitle;   // NSString, the name in the settings list and under the icon

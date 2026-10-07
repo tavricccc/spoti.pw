@@ -103,7 +103,6 @@ CGRect SGRPlayerLandscapeLyricsRect(UIView *host) { return geometry(host, YES).l
     [self addSubview:_progress];
     _volume = [MPVolumeView new];
     _volume.tintColor = SGRSecondary();
-    _volume.showsRouteButton = NO;
     [self addSubview:_volume];
     __weak typeof(self) weak = self;
     _previous = [self button:@"backward.end.fill" size:32 title:@"Previous" action:^{ [(id<SPTPlayer>)SGKaraokePlayer() skipToPreviousTrackWithOptions:nil]; }];

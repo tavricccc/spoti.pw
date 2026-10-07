@@ -195,10 +195,10 @@ Redesigned:
                   Spotify's own glass design), its repaint hook (SGRRepaint.x), soft top edge, AMOLED black (always on,
                   SGRAmoled.x) and its own accent colour (SGRAccent.x, stored apart from the native look's); and
                   the curtain the playlist, album and artist pages come in behind (SGRReveal.h): black over the
-                  whole page from its first pass until the picture, the field's colour, the header with Play and
-                  the first track with its text are all in, and then the page fades in from behind it in one
+                  whole page from its first pass until the header with Play and the first track are in;
+                  artwork and its palette load independently, and then the page fades in from behind it in one
                   go -- the field brightening into the page's colour, the rest fading in where it is, nothing
-                  moving -- so it no longer arrives a piece at a time; after 1.2 s it shows whatever is missing, and
+                  moving -- after at most 0.35 s it shows whatever is ready, and
                   the back button, being the system's navigation bar, is there throughout
     Navbar/       the glass tab bar (TabBar.x) over its own composition (Navbar.x, NavbarLayout.m) and editor, with the fade to
                   black over the pages behind the bars that Spotify's bar drew; the glass search field.
@@ -235,7 +235,7 @@ Redesigned:
                   frames and the hooks' time (Home.h lists its files)
     Search/       the Browse page decluttered to its category cards (an allow list of the list's cells: the watch feed
                   carousels and promos collapse, and the cards move up by the spacing they leave), the header the way Home
-                  has it without the camera, and each card as Liquid Glass tinted by its own colour, read off the Box's
+                  has it without the camera, and each card on its own colour gradient, read off the Box's
                   shape layer (Search.h lists its files)
     Library/      Your Library the way Home and Search have their headers: a large title at the leading edge, the avatar
                   at the trailing edge with the search and create buttons before it, the header's scrim gone, each row's

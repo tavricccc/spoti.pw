@@ -424,7 +424,9 @@ static void syncBar(UIView *stockBar) {
     // An item with no title is drawn by UIKit as its glyph alone, centred, on a bar of the same height.
     NSMutableArray<NSString *> *titles = [NSMutableArray array];
     for (UIView *source in sources) [titles addObject:labelIn(source).text ?: @""];
-    BOOL hideLabels = !SGRNavbarLabelsFit(titles, stockBar.bounds.size.width);
+    CGSize labelSpace = bar.bounds.size;
+    labelSpace.height -= bar.safeAreaInsets.bottom;
+    BOOL hideLabels = !SGRNavbarLabelsFit(titles, labelSpace, bar.traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassCompact);
 
     if (![sources isEqualToArray:bar.sources]) {
         NSMutableArray<UITabBarItem *> *items = [NSMutableArray array];
@@ -762,7 +764,9 @@ static void syncInline(UIView *stockBar) API_AVAILABLE(ios(26.0)) {
     if (!sources.count) return;
     NSMutableArray<NSString *> *titles = [NSMutableArray array];
     for (UIView *source in sources) [titles addObject:labelIn(source).text ?: @""];
-    BOOL hideLabels = !SGRNavbarLabelsFit(titles, stockBar.bounds.size.width);
+    CGSize labelSpace = tabs.tabBar.bounds.size;
+    labelSpace.height -= tabs.tabBar.safeAreaInsets.bottom;
+    BOOL hideLabels = !SGRNavbarLabelsFit(titles, labelSpace, tabs.tabBar.traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassCompact);
 
     if (![sources isEqualToArray:tabs.sources]) {
         NSMutableArray<UITab *> *list = [NSMutableArray array];

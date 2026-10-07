@@ -13,7 +13,7 @@ typedef NS_ENUM(NSInteger, SGRNavbarLabelsMode) {
 SGRNavbarLabelsMode SGRNavbarLabels(void);
 void SGRSetNavbarLabels(SGRNavbarLabelsMode mode);
 NSString *SGRNavbarLabelsTitle(void);
-BOOL SGRNavbarLabelsFit(NSArray<NSString *> *titles, CGFloat width);
+BOOL SGRNavbarLabelsFit(NSArray<NSString *> *titles, CGSize space, BOOL stacked);
 
 extern NSString *const SGRNavbarID;      // NSString, the entry's identity
 extern NSString *const SGRNavbarTitle;   // NSString, the name in the settings list and under the icon

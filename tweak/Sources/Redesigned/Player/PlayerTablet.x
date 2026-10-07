@@ -7,7 +7,7 @@
 #import "Player.h"
 #import "PlayerTablet.h"
 
-static char kPolicyKey, kAppliedKey, kPanKey, kExpandKey, kCloseKey, kExpandStateKey;
+static char kPanKey, kExpandKey, kCloseKey, kExpandStateKey;
 static BOOL sg_portraitFull, sg_landscapeFull;
 
 static BOOL tablet(UIView *view) {
@@ -23,9 +23,9 @@ static BOOL fullPane(UIView *view) {
 NSArray<SGModSection *> *SGRPlayerTabletSections(void) {
     if (UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad) return @[];
     return @[SGNotedSection(@"iPad player", @[
-        SGOptionRow(@"Full screen in portrait", @"Skip the split player when the window is tall", SGRKeyTabletPortraitFullscreen),
-        SGOptionRow(@"Full screen in landscape", @"Skip the split player when the window is wide", SGRKeyTabletLandscapeFullscreen),
-    ], @"Restart Spotify after changing these settings. Each window uses its own available size.")];
+        SGOptionRow(@"Full screen in portrait", @"Open the player expanded when the window is tall", SGRKeyTabletPortraitFullscreen),
+        SGOptionRow(@"Full screen in landscape", @"Open the player expanded when the window is wide", SGRKeyTabletLandscapeFullscreen),
+    ], @"Restart Spotify after changing these settings. Controls the initial presentation, not the entire tablet layout. After rotating, close and reopen the player to apply the new orientation's choice.")];
 }
 
 void SGRPlayerTabletHeaderLaidOut(UIViewController *unit) {
@@ -34,14 +34,14 @@ void SGRPlayerTabletHeaderLaidOut(UIViewController *unit) {
     UIViewController *player = unit;
     Class playerClass = NSClassFromString(@"_TtC19NowPlaying_ViewImpl24NowPlayingViewController");
     while (player && ![player isKindOfClass:playerClass]) player = player.parentViewController;
+    if (!player) for (UIResponder *r = header; r; r = r.nextResponder)
+        if ([r isKindOfClass:playerClass]) { player = (UIViewController *)r; break; }
     if (!player) return;
     UIView *host = player.viewIfLoaded;
     UIWindow *window = host.window;
     if (!window) return;
     BOOL portrait = window.bounds.size.height >= window.bounds.size.width;
     BOOL wanted = portrait ? sg_portraitFull : sg_landscapeFull;
-    NSInteger policy = (portrait ? 2 : 4) | wanted;
-    NSNumber *previous = objc_getAssociatedObject(window, &kPolicyKey);
     UIView *expand = SGRFindByIdentifier(header, @"expand_collapse_button", &kExpandKey);
     if (!expand) return;
     // Full-screen-only mode offers no way back to the split pane in this orientation.
@@ -58,18 +58,6 @@ void SGRPlayerTabletHeaderLaidOut(UIViewController *unit) {
         expand.accessibilityElementsHidden = [state[@"accessibility"] boolValue];
         objc_setAssociatedObject(expand, &kExpandStateKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
     }
-    NSNumber *applied = objc_getAssociatedObject(host, &kAppliedKey);
-    if (applied.integerValue == policy) return;
-    objc_setAssociatedObject(host, &kAppliedKey, @(policy), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(window, &kPolicyKey, @(policy), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    BOOL change = wanted ? !fullPane(host) : previous && (previous.integerValue & 1) && fullPane(host);
-    if (!change) return;
-    __weak UIView *weak = expand;
-    dispatch_async(dispatch_get_main_queue(), ^{
-        UIView *button = weak;
-        if (button.window == window && [objc_getAssociatedObject(window, &kPolicyKey) integerValue] == policy)
-            SGRActivate(button);
-    });
 }
 
 @interface SGRTabletDismissPan : UIPanGestureRecognizer <UIGestureRecognizerDelegate>
@@ -108,10 +96,6 @@ void SGRPlayerTabletHeaderLaidOut(UIViewController *unit) {
 @end
 
 %hook _TtC19NowPlaying_ViewImpl24NowPlayingViewController
-- (void)viewWillAppear:(BOOL)animated {
-    %orig;
-    objc_setAssociatedObject(((UIViewController *)self).viewIfLoaded, &kAppliedKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-}
 - (void)viewDidLayoutSubviews {
     %orig;
     UIView *view = ((UIViewController *)self).viewIfLoaded;

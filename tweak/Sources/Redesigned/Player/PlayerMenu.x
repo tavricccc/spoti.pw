@@ -15,6 +15,7 @@
 #import <objc/message.h>
 #import <objc/runtime.h>
 #import "Core/SGCore.h"
+#import "Diagnostics/Diagnostics.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Shared/Player/SpeedPitch.h"
 #import "Player.h"
@@ -409,6 +410,7 @@ static SGRPlayerMenuAnchor *anchorIn(UIView *button) {
 @property (nonatomic, copy) NSArray<SGRPlayerMenuSpotifyRow *> *rows;
 @property (nonatomic, copy) NSString *signature;
 @property (nonatomic) BOOL hasRows, complete, opened, shown, closed, revealed, finished, pickRan;
+@property (nonatomic) BOOL readingRows, passQueued;
 // Showing the last menu's rows until Spotify's are in; a row picked meanwhile, fired once they are.
 @property (nonatomic) BOOL provisional;
 @property (nonatomic, copy) NSString *pendingIdentifier;
@@ -810,7 +812,9 @@ static void openMenu(SGRPlayerMenuTakeover *t) {
 #pragma mark the pass
 
 static void pass(SGRPlayerMenuTakeover *t) {
-    if (t.revealed || t.finished) return;
+    if (t.revealed || t.finished || t.readingRows) return;
+    if (t.closed && !t.pendingIdentifier) return;
+    t.readingRows = YES;
     UIViewController *menu = t.menu;
     if (!t.sheet) t.sheet = presentedSheet(menu);
     if (!t.player) t.player = t.sheet.presentingViewController;
@@ -820,6 +824,7 @@ static void pass(SGRPlayerMenuTakeover *t) {
     UITableView *table = tableIn(menu.viewIfLoaded, 0);
     BOOL complete = NO;
     NSArray<SGRPlayerMenuSpotifyRow *> *rows = table ? readRows(table, &complete) : @[];
+    t.readingRows = NO;
     if (!rows.count) return;
     BOOL first = !t.hasRows;
     t.hasRows = YES;
@@ -852,6 +857,20 @@ static void pass(SGRPlayerMenuTakeover *t) {
         logNumbers(rows);
         showRows(t);
     }
+}
+
+// Growing the table to read all rows lays it out and then restores its bounds. Those layouts must
+// not recursively read it again; other layout notifications in the same turn share one queued pass.
+static void schedulePass(SGRPlayerMenuTakeover *t) {
+    if (t.readingRows || t.passQueued || t.finished || t.revealed) return;
+    t.passQueued = YES;
+    __weak SGRPlayerMenuTakeover *weak = t;
+    dispatch_async(dispatch_get_main_queue(), ^{
+        SGRPlayerMenuTakeover *strong = weak;
+        if (!strong) return;
+        strong.passQueued = NO;
+        pass(strong);
+    });
 }
 
 static BOOL moreTappedRecently(void) {
@@ -952,6 +971,7 @@ static void findDark(UIView *view, UIView *window, CGFloat alpha, int depth, NSM
 }
 
 static void logDarkness(UIView *anyView) {
+    if (!SGIsDebugBuild()) return;
     static int menus;
     if (menus++ >= 2) return;
     for (NSNumber *after in @[@0, @0.02, @0.05, @0.1, @0.2, @0.4]) {
@@ -1070,7 +1090,7 @@ static void logDarkness(UIView *anyView) {
 - (void)viewDidLayoutSubviews {
     %orig;
     SGRPlayerMenuTakeover *t = takeoverFor((UIViewController *)self);
-    if (t) pass(t);
+    if (t) schedulePass(t);
 }
 
 - (void)viewDidAppear:(BOOL)animated {

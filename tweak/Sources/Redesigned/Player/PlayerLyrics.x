@@ -263,13 +263,16 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     SGRLyricsLayout l = {0};
     UIView *info = sg_info.viewIfLoaded, *duration = sg_duration.viewIfLoaded, *title = sg_titleElement;
     if (!host || host.bounds.size.height < kLivingHeight || !info || !duration) return l;
+    if (![info isDescendantOfView:host] || ![duration isDescendantOfView:host]) return l;
     CGRect area = SGRPlayerArtworkAreaIn(host), cover = SGRPlayerCoverFrameIn(host);
     if (CGRectIsNull(area) || CGRectIsNull(cover)) return l;
     CGRect row = untransformed(info, host), bar = untransformed(duration, host);
     // The thumbnail takes the title's own leading edge, so the two line up down the page.
     CGFloat leading = title ? CGRectGetMinX(untransformed(title, host)) : CGRectGetMinX(area) + SGRSideMargin;
     l.cover = cover;
-    l.thumb = CGRectMake(leading, CGRectGetMinY(area) + kThumbTop, kThumbSide, kThumbSide);
+    UIView *header = sg_header.viewIfLoaded;
+    CGFloat headerBottom = header && [header isDescendantOfView:host] ? CGRectGetMaxY(SGFrameIn(header, host)) : host.safeAreaInsets.top;
+    l.thumb = CGRectMake(leading, MAX(CGRectGetMinY(area) + kThumbTop, headerBottom + SGRGrid), kThumbSide, kThumbSide);
     // Beside the thumbnail when the title can be moved clear of it, under it when it cannot be found.
     CGFloat top = title ? CGRectGetMidY(l.thumb) - row.size.height / 2 : CGRectGetMaxY(l.thumb) + SGRGrid;
     l.lift = top - CGRectGetMinY(row);
@@ -278,8 +281,7 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     l.stage = CGRectMake(CGRectGetMinX(area), lines, area.size.width, CGRectGetMinY(bar) - kLyricsBottom - lines);
     // With the controls away: from the header row's top, just under the status bar, down to the home
     // indicator. The lines fade out at both ends, so nothing needs clearing beyond that.
-    UIView *header = sg_header.viewIfLoaded;
-    UIEdgeInsets safe = host.window.safeAreaInsets;
+    UIEdgeInsets safe = host.safeAreaInsets;
     CGFloat roomTop = MIN(header ? CGRectGetMinY(SGFrameIn(header, host)) : safe.top, CGRectGetMinY(l.stage));
     CGFloat roomBottom = MAX(host.bounds.size.height - safe.bottom, CGRectGetMaxY(l.stage));
     l.room = CGRectMake(CGRectGetMinX(area), roomTop, area.size.width, roomBottom - roomTop);
@@ -561,6 +563,7 @@ static void setOpen(BOOL open, BOOL animated) {
         stopAloneTimer();
     }
     sg_open = open;
+    SGRPlayerHeaderFollowLyrics(sg_header.viewIfLoaded, open);
     SGRPlayerLyricsChanged();
     SGRPlayerAnimatedFollowLyrics(open, animated);
 
@@ -585,7 +588,7 @@ static void setOpen(BOOL open, BOOL animated) {
         // Spotify's cover goes the moment the redesign's own takes its place: the same picture at the
         // same size with the same corners, so there is nothing to see in the swap. Coming back it waits
         // for the thumbnail to land on it, or the two would be on screen at once, one of them half size.
-        SGRPlayerCoverList().alpha = 0;
+        SGRPlayerLyricsCoverHidden(host, YES);
     }
 
     void (^move)(void) = ^{
@@ -604,7 +607,7 @@ static void setOpen(BOOL open, BOOL animated) {
     void (^settled)(BOOL) = ^(BOOL finished) {
         sg_moving = NO;
         if (sg_open) return;   // opened again while it was going away
-        SGRPlayerCoverList().alpha = 1;
+        SGRPlayerLyricsCoverHidden(host, NO);
         [overlay removeFromSuperview];
     };
 
@@ -638,6 +641,7 @@ static void replace(void) {
     if (!host || sg_moving) return;   // a pass in the middle of the transition would cut it short
     SGRLyricsLayout l = layoutIn(host);
     if (sg_open && !l.ok) return;
+    SGRPlayerHeaderFollowLyrics(sg_header.viewIfLoaded, sg_open);
     placeTitleRow(l);
     sg_floating.viewIfLoaded.alpha = sg_open ? 0 : 1;
     if (!sg_open) return;
@@ -650,7 +654,7 @@ static void replace(void) {
     [overlay.lyrics setLineInsets:bandOf(l, sg_alone) duration:0];
     if (sg_alone) showControls(0, overlay);
     placeSing(overlay, l);
-    SGRPlayerCoverList().alpha = 0;
+    SGRPlayerLyricsCoverHidden(host, YES);
 }
 
 #pragma mark - the units
@@ -671,7 +675,7 @@ static void replace(void) {
 
 // The bar morphs back out of a full size cover as the player closes, so the thumbnail is put away first.
 - (void)viewWillDisappear:(BOOL)animated {
-    if (sg_open) setOpen(NO, NO);
+    if ((UIViewController *)self == sg_player && sg_open) setOpen(NO, NO);
     %orig;
 }
 %end
@@ -679,6 +683,7 @@ static void replace(void) {
 // The header row goes with the rest of the controls while the lines are alone.
 static void headerLaidOut(UIViewController *unit) {
     sg_header = unit;
+    SGRPlayerHeaderFollowLyrics(unit.viewIfLoaded, sg_open);
     if (sg_alone) sg_header.viewIfLoaded.alpha = 0;
 }
 

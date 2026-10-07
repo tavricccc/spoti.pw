@@ -158,7 +158,10 @@ static void lowerRow(UIView *row) {
     CGFloat middle = [stack convertPoint:row.center toView:player].y;
     CGFloat height = player.bounds.size.height;
     CGFloat target = height - MAX(window.safeAreaInsets.bottom + kRowAboveSafeArea, kRowMinBottom);
-    CGFloat move = MAX(0, round(target - middle));
+    // iPad's docked player already places this row inside its own panel. The phone's extension toward
+    // the home indicator can put it below the panel's clipped bounds after a split-view resize.
+    BOOL tablet = row.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    CGFloat move = tablet ? 0 : MAX(0, round(target - middle));
     CGAffineTransform down = CGAffineTransformMakeTranslation(0, move);
     if (!CGAffineTransformEqualToTransform(row.transform, down)) row.transform = down;
 
@@ -167,6 +170,11 @@ static void lowerRow(UIView *row) {
     BOOL controls = [NSStringFromClass(unitOf(above).class) containsString:@"PlaybackControlsElementsUnit"];
     CGAffineTransform follow = CGAffineTransformMakeTranslation(0, controls ? round(move * kControlsShare) : 0);
     if (above && controls && !CGAffineTransformEqualToTransform(above.transform, follow)) above.transform = follow;
+
+    if (tablet) {
+        [((SGRFooterReach *)objc_getAssociatedObject(row, &kReachKey)) removeFromSuperview];
+        return;
+    }
 
     SGRFooterReach *reach = objc_getAssociatedObject(row, &kReachKey);
     if (!reach) {

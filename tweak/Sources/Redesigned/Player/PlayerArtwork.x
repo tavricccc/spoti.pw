@@ -64,9 +64,10 @@ static void scaleCover(UIView *tilt, CGFloat scale) {
 
 // The tilt view of the cover on screen: the queue is a cover per cell and the cells out of view are
 // kept hidden (player/02.txt:521), so the one showing is the one in a window with nothing hidden over it.
-static UIView *showingTilt(void) {
+static UIView *showingTilt(UIView *host) {
     for (UIView *tilt in sg_tilts) {
         if (!tilt.window) continue;
+        if (host && ![tilt isDescendantOfView:host]) continue;
         BOOL hidden = NO;
         for (UIView *v = tilt; v && !hidden; v = v.superview) hidden = v.hidden;
         if (!hidden) return tilt;
@@ -74,22 +75,22 @@ static UIView *showingTilt(void) {
     return nil;
 }
 
-UIView *SGRPlayerCoverList(void) {
-    for (UIView *v = showingTilt(); v; v = v.superview) {
+UIView *SGRPlayerCoverListIn(UIView *host) {
+    for (UIView *v = showingTilt(host); v && v != host; v = v.superview) {
         if ([v isKindOfClass:UICollectionView.class]) return v;
     }
     return nil;
 }
 
 CGRect SGRPlayerCoverFrameIn(UIView *host) {
-    UIView *tilt = showingTilt();
+    UIView *tilt = showingTilt(host);
     UIView *cover = coverIn(tilt);
     // The cover's own transform is the paused shrink, which is what the eye sees it at.
     return cover && host ? [host convertRect:cover.bounds fromView:cover] : CGRectNull;
 }
 
 CGRect SGRPlayerArtworkAreaIn(UIView *host) {
-    UIView *tilt = showingTilt();
+    UIView *tilt = showingTilt(host);
     if (!tilt || !host) return CGRectNull;
     // The band is the first view over the cover as wide as the player: the cover sits inset inside it
     // (01.txt:33-36, CoverArtCellImpl > UIView {0, 110, 402, 466.67} > UIView {24, 8, ...} > the tilt view).
@@ -160,7 +161,7 @@ void SGRPlayerSetCoverHidden(BOOL hidden) {
         if (tilt) fadeCovers(@[tilt], left);
     }
     if (!hidden) return;
-    UIView *tilt = showingTilt();
+    UIView *tilt = showingTilt(nil);
     UIView *cover = coverIn(tilt);
     if (!cover) return;
     sg_hiddenCover = cover;

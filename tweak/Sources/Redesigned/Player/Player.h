@@ -18,6 +18,7 @@
 //     PlayerScroll.x     the list held at its top, so the player is one screen and cannot be scrolled up
 //     PlayerLyrics.x     the lyrics in the player: the cover as a thumbnail, the title up beside it,
 //                        and after a few seconds untouched the lines alone on the whole player
+//     PlayerLyricsContent.m  native cover masks and context captions restored as the lyrics close
 //     PlayerGestures.x   the gestures' hookup
 //     PlayerMorph.x      the open and close grown out of the now playing bar's card, the cover flown
 //     PlayerMenu.x       the ⋯ opening a menu the way the Music app draws one (SGRPlayerMenu.h), over
@@ -90,7 +91,7 @@ BOOL SGRPlayerAnimatedShowing(CGFloat *shown, NSTimeInterval *left);
 #pragma mark - the cover (PlayerArtwork.x)
 
 // The sideways list of covers behind the player, nil until one has laid out.
-UIView *SGRPlayerCoverList(void);
+UIView *SGRPlayerCoverListIn(UIView *host);
 // The cover on screen as it is drawn, its paused shrink included, in `host`'s coordinates; CGRectNull
 // when no cover has laid out.
 CGRect SGRPlayerCoverFrameIn(UIView *host);
@@ -114,6 +115,9 @@ void SGRPlayerToggleLyrics(void);
 // Called by PlayerLyrics.x whenever either of those two changed, so the footer's lyrics glyph follows
 // (PlayerFooter.x). It returns at once when nothing changed.
 void SGRPlayerLyricsChanged(void);
+// The header's context caption and the native artwork are concealed while the lyrics replace them.
+void SGRPlayerHeaderFollowLyrics(UIView *header, BOOL open);
+void SGRPlayerLyricsCoverHidden(UIView *host, BOOL hidden);
 
 // Alpha 0, no touches, hidden from accessibility, set again on every call: for Spotify's Swift views,
 // which SGRSuppress cannot keep (PlayerControls.x).

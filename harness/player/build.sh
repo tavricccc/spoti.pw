@@ -23,6 +23,7 @@ xcrun -sdk iphonesimulator clang -target arm64-apple-ios17.0-simulator -fobjc-ar
     "$SRC"/Redesigned/Kit/SGRTokens.m "$SRC"/Redesigned/Kit/SGRPalette.m "$SRC"/Redesigned/Kit/SGRField.m "$SRC"/Redesigned/Kit/SGRWarp.m \
     "$SRC"/Redesigned/Kit/SGRGlass.m "$SRC"/Redesigned/Kit/SGRGlyph.m "$SRC"/Redesigned/Kit/SGRRestyle.m \
     "$SRC"/Redesigned/Kit/SGRedesign.m "$SRC"/Redesigned/Player/PlayerBackgroundSettings.m \
+    "$SRC"/Redesigned/Player/PlayerLyricsContent.m \
     "$SRC"/Settings/SGPage.m "$SRC"/Settings/SGPageStyle.m "$SRC"/Settings/SGModPage.m "$SRC"/Settings/SGGlowSwitch.m "$SRC"/Settings/SGOrderPage.m \
     "$SRC"/Shared/LockScreenArtwork/LockScreenArtwork.m "$SRC"/Shared/LockScreenArtwork/LockScreenArtworkSettings.m "$SRC"/Shared/LockScreenArtwork/SGCanvas.m \
     "$SRC"/Redesigned/Lyrics/SGRSingControl.m "$(dirname "$0")/sing_stubs.m" \

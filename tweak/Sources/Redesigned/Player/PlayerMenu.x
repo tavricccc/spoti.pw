@@ -534,6 +534,29 @@ static void hideSheet(SGRPlayerMenuTakeover *t, UIView *container) {
     hidePresentation(sheetViewOf(t.sheet), container);
 }
 
+// A takeover belongs to a presented menu, whether Spotify used a phone sheet or an iPad popover.
+static void retireTakeover(SGRPlayerMenuTakeover *t) {
+    if (!t) return;
+    t.finished = YES;
+    t.afterPresentation = nil;
+    [t.poll invalidate];
+    if (t.loadingDone) { t.loadingDone(@[]); t.loadingDone = nil; }
+    t.anchor.shown = nil;
+    t.anchor.closed = nil;
+    UIViewController *sheet = t.sheet;
+    objc_setAssociatedObject(sheet, &kClaimKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    objc_setAssociatedObject(sheet, &kTakenKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    restorePresentation(sheetViewOf(sheet), sheet.presentationController.containerView);
+    if (objc_getAssociatedObject(t.menu, &kTakeoverKey) == t)
+        objc_setAssociatedObject(t.menu, &kTakeoverKey, NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+}
+
+static void presentationEnded(SGRPlayerMenuTakeover *t) {
+    dispatch_block_t pending = t.afterPresentation;
+    t.afterPresentation = nil;
+    if (pending) dispatch_async(dispatch_get_main_queue(), pending);
+}
+
 // Spotify's sheet as Spotify draws it, and the menu gone.
 static void reveal(SGRPlayerMenuTakeover *t, NSString *why) {
     if (t.revealed || t.finished) return;
@@ -556,15 +579,20 @@ static void finish(SGRPlayerMenuTakeover *t, NSString *why, void (^then)(void)) 
     }
     UIViewController *sheet = t.sheet;
     __weak UIViewController *weakSheet = sheet;
+    __weak SGRPlayerMenuTakeover *weakTakeover = t;
     dispatch_block_t dismiss = ^{
         UIViewController *presented = weakSheet;
         if (!presented.presentingViewController) {
+            retireTakeover(weakTakeover);
             if (then) then();
             return;
         }
         if (presented.isBeingDismissed) return;
         SGLog(@"redesign player menu: Spotify's sheet taken away, %@", why);
-        [presented dismissViewControllerAnimated:NO completion:then];
+        [presented dismissViewControllerAnimated:NO completion:^{
+            retireTakeover(weakTakeover);
+            if (then) then();
+        }];
     };
     // UIKit cannot reliably dismiss a sheet in the middle of its presentation. Keep the close until
     // presentationTransitionDidEnd instead of leaving a hidden modal behind after a rejected dismiss.
@@ -890,6 +918,12 @@ static UIViewController *contextMenuIn(UIViewController *controller, int depth) 
 
 static SGRPlayerMenuTakeover *takeoverFor(UIViewController *menu) {
     id existing = objc_getAssociatedObject(menu, &kTakeoverKey);
+    if (existing && moreTappedRecently() && (existing == NSNull.null ||
+        ([existing isKindOfClass:SGRPlayerMenuTakeover.class] &&
+         (((SGRPlayerMenuTakeover *)existing).finished || ((SGRPlayerMenuTakeover *)existing).revealed)))) {
+        objc_setAssociatedObject(menu, &kTakeoverKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        existing = nil;
+    }
     if (existing) return existing == NSNull.null ? nil : existing;
     BOOL claimed = [objc_getAssociatedObject(presentedSheet(menu), &kClaimKey) boolValue];
     if (!moreTappedRecently() && !claimed) {
@@ -1038,9 +1072,7 @@ static void logDarkness(UIView *anyView) {
     UIViewController *menu = contextMenuIn(presentation.presentedViewController, 0);
     SGRPlayerMenuTakeover *t = objc_getAssociatedObject(menu, &kTakeoverKey);
     if (![t isKindOfClass:SGRPlayerMenuTakeover.class]) return;
-    dispatch_block_t pending = t.afterPresentation;
-    t.afterPresentation = nil;
-    if (pending) dispatch_async(dispatch_get_main_queue(), pending);
+    presentationEnded(t);
     if (!completed) {
         t.finished = YES;
         [t.poll invalidate];
@@ -1057,16 +1089,7 @@ static void logDarkness(UIView *anyView) {
     UIViewController *menu = contextMenuIn(sheet, 0);
     SGRPlayerMenuTakeover *t = objc_getAssociatedObject(menu, &kTakeoverKey);
     if (![t isKindOfClass:SGRPlayerMenuTakeover.class]) return;
-    t.finished = YES;
-    t.afterPresentation = nil;
-    [t.poll invalidate];
-    if (t.loadingDone) { t.loadingDone(@[]); t.loadingDone = nil; }
-    t.anchor.shown = nil;
-    t.anchor.closed = nil;
-    objc_setAssociatedObject(sheet, &kClaimKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    objc_setAssociatedObject(sheet, &kTakenKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
-    restorePresentation(presentation.presentedView, presentation.containerView);
-    objc_setAssociatedObject(menu, &kTakeoverKey, NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    retireTakeover(t);
 }
 
 - (void)containerViewDidLayoutSubviews {
@@ -1096,7 +1119,21 @@ static void logDarkness(UIView *anyView) {
 - (void)viewDidAppear:(BOOL)animated {
     %orig;
     SGRPlayerMenuTakeover *t = objc_getAssociatedObject(self, &kTakeoverKey);
-    if ([t isKindOfClass:SGRPlayerMenuTakeover.class]) pass(t);
+    if ([t isKindOfClass:SGRPlayerMenuTakeover.class]) {
+        pass(t);
+        // iPad popovers do not go through Spotify's SheetPresentationController hook.
+        openMenu(t);
+        presentationEnded(t);
+    }
+}
+
+- (void)viewDidDisappear:(BOOL)animated {
+    %orig;
+    SGRPlayerMenuTakeover *t = objc_getAssociatedObject(self, &kTakeoverKey);
+    if (![t isKindOfClass:SGRPlayerMenuTakeover.class]) return;
+    UIViewController *sheet = t.sheet;
+    if (!sheet.presentingViewController || sheet.isBeingDismissed || sheet.presentingViewController.isBeingDismissed)
+        retireTakeover(t);
 }
 
 // The sheet going away takes the menu with it; a page of Spotify's pushed onto it shows the sheet.

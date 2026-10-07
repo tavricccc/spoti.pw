@@ -31,3 +31,7 @@ restored, and another menu can open and close. Add `reuse` to present the same s
     xcrun simctl launch --console-pty <udid> com.vojta.playermenuharness quick reuse
 
 Add `quickpick` to select Add to playlist during presentation instead of closing without a pick.
+
+On an iPad simulator, `outside popover reuse` uses UIKit's popover rather than Spotify's phone sheet.
+It asserts that closing the system menu releases the invisible popover, then reopens and closes the
+same menu again. This covers the presentation path that never calls the phone sheet hooks.

@@ -348,6 +348,12 @@ static BOOL onScreen(UIView *view) {
     if (!delegate) delegate = [SGHarnessSheetDelegate new];
     container.modalPresentationStyle = UIModalPresentationCustom;
     container.transitioningDelegate = delegate;
+    if (argument(@"popover")) {
+        container.modalPresentationStyle = UIModalPresentationPopover;
+        container.preferredContentSize = CGSizeMake(360, 600);
+        container.popoverPresentationController.sourceView = self.more;
+        container.popoverPresentationController.sourceRect = self.more.bounds;
+    }
     self.keptSheet = container;
     [self presentViewController:container animated:YES completion:nil];
 }
@@ -583,6 +589,20 @@ static void dump(UIView *view, int depth, NSMutableString *out) {
             [anchorOf(window).contextMenuInteraction dismissMenu];
         });
         after(4, ^{ report(window, @"after closing it"); });
+        if (argument(@"popover")) {
+            after(4.2, ^{
+                NSCAssert(!player.presentedViewController, @"the iPad popover must dismiss after the menu closes");
+                [player.more sendActionsForControlEvents:UIControlEventTouchUpInside];
+            });
+            after(6, ^{
+                NSCAssert(menuOnScreen(window).count, @"the iPad menu must open again");
+                [anchorOf(window).contextMenuInteraction dismissMenu];
+            });
+            after(7, ^{
+                NSCAssert(!player.presentedViewController, @"a reused iPad popover must dismiss too");
+                NSLog(@"[harness] PASS: iPad popover menu reopened and dismissed");
+            });
+        }
     }
 }
 

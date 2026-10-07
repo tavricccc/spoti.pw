@@ -24,7 +24,7 @@
         // SPTUBINavigationReason +passthrough @16@0:8 at 0x108130028.
         id reason = ((id (*)(id, SEL))objc_msgSend)(NSClassFromString(@"SPTUBINavigationReason"), NSSelectorFromString(@"passthrough"));
         [current setExpandedUIVisibility:1 navigationReason:reason completion:^{
-            [current setReducedUIMode:1 navigationReason:reason completion:nil];
+            [animator setReducedUIMode:1 navigationReason:reason completion:nil];
         }];
     }];
 }

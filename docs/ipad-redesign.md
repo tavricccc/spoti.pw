@@ -19,7 +19,7 @@
 - iPad footer 保留原生面板內的位置。
 - 手機與 iPad 首頁共用緊湊的浮動玻璃標題工具列，帳號按鈕保留原生動作。首頁內容仍由 Spotify 的音樂 shelves 提供，尚未完整重做 Apple Music 的推薦大卡與頂端分頁。
 - 首頁 feed 額外保留 16pt 頂部間距，避免第一排卡片緊貼浮動工具列；旋轉、切換分割與重新進入首頁不會累加間距。
-- iPad 浮動 navbar 不再繪製手機用的全寬黑色漸層，玻璃膠囊外的封面與文字保持原色。
+- iPad 浮動 navbar 不建立插件的全寬黑色漸層，並將 Spotify 的 `TabBarGradientView` 保持 alpha 0；依實際 iPad 裝置判斷，不受 Compact 排版影響。
 - 減少首頁標題搜尋與封面 observer 重裝；導覽列文字寬度只在名稱／字型改變時重算。
 - 已按讚歌曲使用單次繪製的藍紫漸層白色愛心封面，供既有 full-bleed hero 與背景色場讀取；它不是從一般 playlist UIImageView 載入的封面。
 - 停用自動更新、贊助與證書推銷提示，以及對應推銷列；手動 Updates 頁保留。

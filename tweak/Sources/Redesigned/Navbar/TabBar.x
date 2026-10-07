@@ -272,6 +272,7 @@ static const CGFloat kFadeDepth = 0.5;
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame])) return nil;
+    if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) return self;
     _fade = [CAGradientLayer layer];
     NSNull *off = NSNull.null;
     _fade.actions = @{@"bounds": off, @"position": off, @"frame": off};
@@ -290,9 +291,6 @@ static const CGFloat kFadeDepth = 0.5;
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    // iPad's bar is a floating capsule over the page. The phone's full-width fade made a
-    // second dark surface outside that capsule and dimmed whole rows of artwork behind it.
-    _fade.hidden = self.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
     CGRect bounds = self.bounds;
     CGRect fade = CGRectMake(0, -kFadeRise, bounds.size.width, bounds.size.height + kFadeRise);
     if (!CGRectEqualToRect(_fade.frame, fade)) _fade.frame = fade;

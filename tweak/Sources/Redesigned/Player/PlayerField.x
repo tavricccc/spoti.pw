@@ -154,6 +154,7 @@ static void publishCover(void) {
 
 @implementation SGRPlayerCoverWatcher {
     NSString *_track;
+    NSUInteger _generation;
 }
 
 - (void)playerStateDidChange:(SPTPlayerState *)state {
@@ -161,8 +162,11 @@ static void publishCover(void) {
     NSString *track = SGURIString(state.track.URI);
     if (!track || [track isEqualToString:_track]) return;
     _track = track;
+    NSUInteger generation = ++_generation;
     for (NSNumber *delay in @[@0.3, @1, @2.5]) {
-        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{ publishCover(); });
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            if (self->_generation == generation) publishCover();
+        });
     }
 }
 

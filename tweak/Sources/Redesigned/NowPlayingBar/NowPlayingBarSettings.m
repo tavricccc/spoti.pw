@@ -4,11 +4,12 @@
 #import "Settings/SGModPage.h"
 #import "NowPlayingBar.h"
 #import "Redesigned/Player/Player.h"
+#import "Redesigned/Player/PlayerTablet.h"
 
 NSArray<SGModSection *> *SGRNowPlayingSections(void) {
     return [@[
         SGSection(nil, @[
             SGHideRow(@"Hide the device button", nil, SGRHideBarConnect),
         ]),
-    ] arrayByAddingObjectsFromArray:SGRPlayerBackgroundSections()];
+    ] arrayByAddingObjectsFromArray:[SGRPlayerTabletSections() arrayByAddingObjectsFromArray:SGRPlayerBackgroundSections()]];
 }

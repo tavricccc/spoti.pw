@@ -21,8 +21,9 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Shared/Player/SpeedPitch.h"
 #import "Player.h"
+#import "PlayerTablet.h"
 
-static char kGlassKey, kCloseKey, kMoreKey;
+static char kGlassKey, kCloseKey, kMoreKey, kExpandKey;
 
 static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers, const void **findKeys) {
     UIView *host = unit.viewIfLoaded;
@@ -57,8 +58,10 @@ static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers
 }
 
 static void layOutHeader(UIViewController *unit) {
-    static const void *keys[] = {&kCloseKey, &kMoreKey};
-    glassInside(unit, @[@"now-playing-minimize-button", @"Context menu"], keys);
+    static const void *keys[] = {&kCloseKey, &kMoreKey, &kExpandKey};
+    BOOL tablet = unit.view.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    glassInside(unit, tablet ? @[@"now-playing-minimize-button", @"Context menu", @"expand_collapse_button"] : @[@"now-playing-minimize-button", @"Context menu"], keys);
+    SGRPlayerTabletHeaderLaidOut(unit);
 }
 
 %hook _TtC20NowPlaying_ModesImpl18HeaderElementsUnit

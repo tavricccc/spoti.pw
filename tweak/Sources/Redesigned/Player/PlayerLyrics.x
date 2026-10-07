@@ -53,9 +53,10 @@
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/Sing/SGSingController.h"
 #import "Player.h"
+#import "PlayerLandscape.h"
 
-static const CGFloat kThumbSide = 72;          // the cover once the lyrics are up
-static const CGFloat kThumbGap = 16;           // between the thumbnail and the title beside it
+static const CGFloat kThumbSide = 48;          // compact Music-style cover while portrait lyrics are up
+static const CGFloat kThumbGap = 12;           // between the thumbnail and the title beside it
 static const CGFloat kTitleGap = 12;           // between the title and the controls at the trailing edge
 static const CGFloat kTitleFade = 20;          // over how much of its end a title too long to fit fades out
 static const CGFloat kThumbTop = 8;            // below the top of the artwork band
@@ -78,7 +79,7 @@ static const CGFloat kThumbPressScale = 0.94, kThumbPressAlpha = 0.8;
 // Over a clip the thumbnail grows in from this in its place, and shrinks back to it going.
 static const CGFloat kThumbAppearScale = 0.8;
 
-static char kOverlayKey, kPlateKey, kTitleKey, kWatcherKey;
+static char kOverlayKey, kPlateKey, kTitleKey, kWatcherKey, kControlsAlphaKey, kFontKey;
 static BOOL sg_open;
 static BOOL sg_moving;                      // the transition is in flight, so no layout pass may re-place it
 static BOOL sg_alone;                       // the controls are away and the lines have the player
@@ -261,6 +262,14 @@ static CGRect untransformed(UIView *view, UIView *host) {
 
 static SGRLyricsLayout layoutIn(UIView *host) {
     SGRLyricsLayout l = {0};
+    if (SGRPlayerLandscape(host)) {
+        l.cover = SGRPlayerCoverFrameIn(host);
+        if (CGRectIsNull(l.cover)) l.cover = CGRectMake(0, 0, 1, 1);
+        l.thumb = l.cover;
+        l.stage = l.room = SGRPlayerLandscapeLyricsRect(host);
+        l.ok = l.stage.size.width > 100 && l.stage.size.height > 100;
+        return l;
+    }
     UIView *info = sg_info.viewIfLoaded, *duration = sg_duration.viewIfLoaded, *title = sg_titleElement;
     if (!host || host.bounds.size.height < kLivingHeight || !info || !duration) return l;
     if (![info isDescendantOfView:host] || ![duration isDescendantOfView:host]) return l;
@@ -282,7 +291,8 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     // With the controls away: from the header row's top, just under the status bar, down to the home
     // indicator. The lines fade out at both ends, so nothing needs clearing beyond that.
     UIEdgeInsets safe = host.safeAreaInsets;
-    CGFloat roomTop = MIN(header ? CGRectGetMinY(SGFrameIn(header, host)) : safe.top, CGRectGetMinY(l.stage));
+    // The song heading and small cover remain visible while the transport controls fade away.
+    CGFloat roomTop = CGRectGetMinY(l.stage);
     CGFloat roomBottom = MAX(host.bounds.size.height - safe.bottom, CGRectGetMaxY(l.stage));
     l.room = CGRectMake(CGRectGetMinX(area), roomTop, area.size.width, roomBottom - roomTop);
     l.ok = l.stage.size.height > kLivingHeight / 2 && l.lift < 0;
@@ -346,12 +356,30 @@ static void clipTitle(UIView *element, CGFloat width) {
 static void placeTitleRow(SGRLyricsLayout l) {
     UIView *info = sg_info.viewIfLoaded;
     if (!info) return;
+    if (SGRPlayerLandscape(sg_host)) {
+        info.transform = CGAffineTransformIdentity;
+        sg_titleElement.transform = CGAffineTransformIdentity;
+        return;
+    }
     [SGRowIn(info) layoutIfNeeded];
     CGFloat lift = sg_open ? l.lift : 0, shift = sg_open ? l.shift : 0;
     CGAffineTransform rise = CGAffineTransformMakeTranslation(0, round(lift));
     if (!CGAffineTransformEqualToTransform(info.transform, rise)) info.transform = rise;
     UIView *title = sg_titleElement;
     if (!title) return;
+    SGForEachView(title, ^(UIView *view) {
+        if (![view isKindOfClass:UILabel.class]) return;
+        UILabel *label = (UILabel *)view;
+        UIFont *original = objc_getAssociatedObject(label, &kFontKey);
+        if (sg_open && !original) {
+            original = label.font;
+            objc_setAssociatedObject(label, &kFontKey, original, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+        if (!original) return;
+        UIFont *font = sg_open ? [original fontWithSize:MIN(original.pointSize, original.pointSize >= 20 ? 17 : 13)] : original;
+        if (![label.font isEqual:font]) label.font = font;
+        if (!sg_open) objc_setAssociatedObject(label, &kFontKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    });
     CGAffineTransform slide = CGAffineTransformMakeTranslation(round(shift), 0);
     if (!CGAffineTransformEqualToTransform(title.transform, slide)) title.transform = slide;
     // Closed it reaches as far as Spotify meant it to; moved, only as far as the controls it moved towards.
@@ -365,11 +393,25 @@ static void placeTitleRow(SGRLyricsLayout l) {
 // Everything the lines leave the player to: the header row, the bottom stack with the title row lifted
 // out of it, and the thumbnail. Alpha on the header unit's view and the stack, never hidden: views
 // inside Spotify's stacks crash when hidden, and at alpha 0 UIKit hands them no touches either.
+static void fadeControl(UIView *view, CGFloat alpha) {
+    NSNumber *original = objc_getAssociatedObject(view, &kControlsAlphaKey);
+    if (alpha < 1) {
+        if (!original) objc_setAssociatedObject(view, &kControlsAlphaKey, @(view.alpha), OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        view.alpha = alpha;
+    } else if (original) {
+        view.alpha = original.doubleValue;
+        objc_setAssociatedObject(view, &kControlsAlphaKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+}
 static void showControls(CGFloat alpha, SGRPlayerLyricsOverlay *overlay) {
-    sg_header.viewIfLoaded.alpha = alpha;
+    fadeControl(sg_header.viewIfLoaded, alpha);
     UIView *stack = sg_info.viewIfLoaded.superview;
-    if ([stack isKindOfClass:UIStackView.class]) stack.alpha = alpha;
-    overlay.thumb.alpha = alpha;
+    if ([stack isKindOfClass:UIStackView.class]) for (UIView *view in ((UIStackView *)stack).arrangedSubviews)
+        if (view != sg_info.viewIfLoaded) fadeControl(view, alpha);
+    SGForEachView(sg_info.viewIfLoaded, ^(UIView *view) {
+        if ([view isKindOfClass:UIControl.class]) fadeControl(view, alpha);
+    });
+    overlay.thumb.alpha = 1;
 }
 
 static void stopAloneTimer(void) {
@@ -441,7 +483,7 @@ static BOOL mayGoAlone(void) {
 // and so does the app coming back (the %ctor).
 static void scheduleAlone(void) {
     stopAloneTimer();
-    if (!sg_open || sg_alone) return;
+    if (!sg_open || sg_alone || SGRPlayerLandscape(sg_host)) return;
     sg_aloneTimer = [NSTimer scheduledTimerWithTimeInterval:kAloneAfter repeats:NO block:^(NSTimer *timer) {
         sg_aloneTimer = nil;
         if (mayGoAlone()) setAlone(YES, YES);
@@ -519,6 +561,7 @@ static void place(SGRPlayerLyricsOverlay *overlay, UIView *host, SGRLyricsLayout
     overlay.stage.bounds = (CGRect){CGPointZero, stage.size};
     overlay.stage.center = CGPointMake(CGRectGetMidX(stage), CGRectGetMidY(stage));
     overlay.empty.frame = UIEdgeInsetsInsetRect(overlay.stage.bounds, bandOf(l, NO));
+    overlay.thumb.hidden = SGRPlayerLandscape(host);
 }
 
 // Where the thumbnail's view has to go to land on `l.thumb`, as a transform about its own centre: the
@@ -639,6 +682,9 @@ void SGRPlayerToggleLyrics(void) {
 static void replace(void) {
     UIView *host = sg_host;
     if (!host || sg_moving) return;   // a pass in the middle of the transition would cut it short
+    if (SGRPlayerLandscape(host) && sg_alone) setAlone(NO, NO);
+    SGRPlayerLandscapeLayout(host);
+    SGRPlayerLyricsCoverHidden(host, sg_open || SGRPlayerLandscape(host));
     SGRLyricsLayout l = layoutIn(host);
     if (sg_open && !l.ok) return;
     SGRPlayerHeaderFollowLyrics(sg_header.viewIfLoaded, sg_open);
@@ -683,12 +729,14 @@ static void replace(void) {
 // The header row goes with the rest of the controls while the lines are alone.
 static void headerLaidOut(UIViewController *unit) {
     sg_header = unit;
+    SGRPlayerLandscapeUnit(unit);
     SGRPlayerHeaderFollowLyrics(unit.viewIfLoaded, sg_open);
-    if (sg_alone) sg_header.viewIfLoaded.alpha = 0;
+    if (sg_alone) fadeControl(sg_header.viewIfLoaded, 0);
 }
 
 static void infoLaidOut(UIViewController *unit) {
     sg_info = unit;
+    SGRPlayerLandscapeUnit(unit);
     UIView *host = unit.viewIfLoaded;
     // The title and the artist are two labels of one arranged element view, which is what moves.
     UIView *label = SGRFindByIdentifier(host, @"now-playing-title-label", &kTitleKey);
@@ -706,6 +754,7 @@ static void infoLaidOut(UIViewController *unit) {
 
 static void durationLaidOut(UIViewController *unit) {
     sg_duration = unit;
+    SGRPlayerLandscapeUnit(unit);
     replace();
 }
 

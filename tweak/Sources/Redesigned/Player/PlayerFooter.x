@@ -22,6 +22,7 @@
 #import "Core/SGCore.h"
 #import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
+#import "PlayerLandscape.h"
 #import "PlayerTabletLayout.h"
 
 static const CGFloat kLyricsGlyphSize = 20;
@@ -199,6 +200,7 @@ static void lowerRow(UIView *row) {
 }
 
 static void layOutFooter(UIViewController *unit) {
+    SGRPlayerLandscapeUnit(unit);
     UIView *host = unit.viewIfLoaded;
     if (!host) return;
     // The unit lays out before its row does, and the moves are measured from where the row put things.

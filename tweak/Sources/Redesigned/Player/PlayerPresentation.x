@@ -5,6 +5,53 @@
 // NowPlayingOverlayContainer.expand is v16@0:8 at 0x1012ebce8.
 #import "Core/SGCore.h"
 
+static char kExpandSourcesKey, kExpandMaskKey, kExpandSavedMaskKey;
+
+// Button ids in 9.1.78: expand_toggle_button 0x10a541220 (xref 0x1025c21e8),
+// expand_collapse_button 0x10a45cbc0, EmbeddedNPV.expandButton in embedded NPV.
+// Search the presentation's full content, not only the modes' HeaderElementsUnit.
+static void lockExpand(UIView *root) {
+    if (!root.window) return;
+    NSHashTable<UIView *> *buttons = objc_getAssociatedObject(root, &kExpandSourcesKey);
+    if (!buttons.count) {
+        buttons = [NSHashTable weakObjectsHashTable];
+        SGForEachView(root, ^(UIView *view) {
+            NSString *identifier = view.accessibilityIdentifier;
+            if ([identifier isEqualToString:@"expand_toggle_button"] ||
+                [identifier isEqualToString:@"expand_collapse_button"] ||
+                [identifier isEqualToString:@"EmbeddedNPV.expandButton"]) {
+                [buttons addObject:view];
+                SGLog(@"iPad player: expansion control %@ in %@", identifier, NSStringFromClass(root.class));
+            }
+        });
+        objc_setAssociatedObject(root, &kExpandSourcesKey, buttons, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
+    BOOL locked = root.window.bounds.size.width > root.window.bounds.size.height;
+    for (UIView *button in buttons) {
+        if (![button isDescendantOfView:root]) continue;
+        CALayer *mask = objc_getAssociatedObject(button, &kExpandMaskKey);
+        if (locked) {
+            if (!mask) {
+                mask = [CALayer layer];
+                mask.frame = CGRectMake(0, 0, 1, 1);
+                mask.backgroundColor = UIColor.clearColor.CGColor;
+                objc_setAssociatedObject(button, &kExpandSavedMaskKey, button.layer.mask ?: (id)NSNull.null, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+                objc_setAssociatedObject(button, &kExpandMaskKey, mask, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            }
+            button.layer.mask = mask;
+            button.userInteractionEnabled = NO;
+            button.accessibilityElementsHidden = YES;
+        } else if (mask) {
+            id saved = objc_getAssociatedObject(button, &kExpandSavedMaskKey);
+            button.layer.mask = saved == NSNull.null ? nil : saved;
+            button.userInteractionEnabled = YES;
+            button.accessibilityElementsHidden = NO;
+            objc_setAssociatedObject(button, &kExpandMaskKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+            objc_setAssociatedObject(button, &kExpandSavedMaskKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        }
+    }
+}
+
 static BOOL wideWindow(UIWindow *window) {
     return window && window.bounds.size.width > window.bounds.size.height;
 }
@@ -31,9 +78,27 @@ static void updateLayout(UIViewController *controller) {
 %end
 
 %hook _TtC23NowPlaying_ViewPageImpl26NowPlayingOverlayContainer
+- (void)viewDidLayoutSubviews {
+    %orig;
+    lockExpand(((UIViewController *)self).viewIfLoaded);
+}
 - (void)expand {
     if (wideWindow(((UIViewController *)self).viewIfLoaded.window)) return;
     %orig;
+}
+%end
+
+%hook _TtC23NowPlaying_ViewPageImpl29NowPlayingAttachmentContainer
+- (void)viewDidLayoutSubviews {
+    %orig;
+    lockExpand(((UIViewController *)self).viewIfLoaded);
+}
+%end
+
+%hook _TtC19NowPlaying_ViewImpl24NowPlayingViewController
+- (void)viewDidLayoutSubviews {
+    %orig;
+    lockExpand(((UIViewController *)self).viewIfLoaded);
 }
 %end
 
@@ -48,5 +113,7 @@ static void updateLayout(UIViewController *controller) {
     });
     %init;
     SGRequireClasses(@[@"_TtC23NavigationUI_TabBarImpl19TabBarContainerImpl",
-                       @"_TtC23NowPlaying_ViewPageImpl26NowPlayingOverlayContainer"]);
+                       @"_TtC23NowPlaying_ViewPageImpl26NowPlayingOverlayContainer",
+                       @"_TtC23NowPlaying_ViewPageImpl29NowPlayingAttachmentContainer",
+                       @"_TtC19NowPlaying_ViewImpl24NowPlayingViewController"]);
 }

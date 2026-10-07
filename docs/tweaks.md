@@ -209,17 +209,9 @@ Redesigned:
                   (BarConnect.x, its own key and its own row on the Player page, apart from the native look's)
     Player/       the redesigned full screen player (Player.h lists its files), on Spotify Free's units too (a Free
                   account with pick and shuffle gets NowPlayingReinventFreeMode, whose units are classes of their own
-                  around the same elements, and each unit hook covers both); its ⋯ opens a menu the way the
-                  Music app draws one (PlayerMenu.x, SGRPlayerMenu.m): a pane of glass grown out of the button,
-                  Add to playlist, Add to Queue and Share as three tiles across its top, groups of rows under
-                  them, Speed and pitch opening onto Shared/Player's sliders in place, everything else Spotify
-                  offers under More, and Remove from this playlist last in red. What is in it and what each row
-                  does stay Spotify's: its own sheet still opens, out of sight, and the menu is read off its
-                  table, each row placed by the number Spotify's ListRow carries as its identifier and fired
-                  through that ListRow; a page Spotify pushes onto the sheet (Share's destinations) shows the
-                  sheet, and a sheet with no rows within 4 s is shown as it is. It opens on the rows the last
-                  menu had, kept across launches, and moves to Spotify's as they come in, a tap meanwhile held
-                  until they do. Always on in the redesign. Tested in the simulator against harness/playermenu/
+                  around the same elements, and each unit hook covers both). Its more button opens Spotify's
+                  native menu with Shared/Player's Speed and pitch row. No duplicate menu takeover or hidden
+                  backing sheet is maintained. Phone rotation follows Spotify's original portrait policy.
                   With Sing on and its voice model downloaded (Mod Settings > Karaoke, Redesigned/Lyrics/SingSettings.m,
                   both applying at once), its microphone (Redesigned/Lyrics/SGRSingControl.m) sits in the
                   lyrics' bottom trailing corner, opposite their glass button, and goes down with the lines when the

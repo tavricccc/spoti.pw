@@ -7,13 +7,13 @@
 - iPad 寬視窗保留 Spotify 原生分割播放頁，停用並淡出 `expand_collapse_button`；原生向下箭頭仍可操作。初始模式固定為 `Collapsed`。
 - iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
 - 移除直／橫向初始全螢幕設定、自製橫向播放器、額外收合箭頭／手勢、直向 split 控制群位移。旧設定不再讀取。
-- Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據目前導覽列所在面板的寬度與文字大小隱藏／還原標籤，立即生效。原 Hide labels 設定會遷移到新選項。
+- Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據實際玻璃 bar 寬高與文字大小隱藏／還原標籤；上下排圖示與文字時，額外保留 8pt 間距及上下留白。窄視窗擠壓時自動隱藏，不再只量 Spotify 外層面板寬度。
 
 播放頁的呈現、控制與收合由 Spotify 負責。這次不再維護一套額外的播放器控制服務或猜測收合控制器。
 
 ## 本次變更
 
-- iPad 的 ⋯ 使用 popover 時也會呈現 Redesigned 選單；收合與重新開啟會清理 takeover 狀態。
+- 手機與 iPad 的 ⋯ 直接使用 Spotify 原生選單；移除 Redesigned 接管及對應 harness，保留 Shared 的 Speed and pitch 列。
 - 橫向 split 的放大入口停用，保留原生 minimize 按鈕的玻璃底與動作。
 - 歌詞封面遮罩、標題與進度列定位限定於目前播放面板；歌詞關閉後還原原生內容。
 - iPad footer 保留原生面板內的位置。
@@ -38,7 +38,7 @@
 
 尚未找到一個能可靠停用整個 tablet／side attachment 排版的 flag。沒有修改 `sideAttachment` 或偽造 `isActive`；binary 顯示 `sideAttachment` 是必要容器值，直接返回 nil 會進入 trap。
 
-手機原 IPA 的 `UISupportedInterfaceOrientations` 只有 Portrait；現在加入兩個 landscape 方向，並在 Redesigned 下擴充 AppDelegate（`0x106ccb640`）、SPNavigationController（`0x1010921a4`）及播放頁的方向限制。旋轉仍遵守系統的直向鎖定。
+手機原 IPA 的 `UISupportedInterfaceOrientations` 只有 Portrait；目前已回退新增的 landscape 宣告與 AppDelegate／navigation／player 的方向 hooks。iPad 保留原有方向支援。
 
 ## Build 與實機檢查
 
@@ -54,4 +54,4 @@ Windows 本機檢查 Logos 預處理、來源分層、plist 與 shell 語法；i
 4. Navbar 選 Auto，調整視窗寬度，標籤應在空間不足時消失，變寬後恢復。
 5. 首頁工具列不應遮住帳號按鈕；開啟已按讚歌曲應看到漸層愛心封面與帶色背景。
 6. 手機首頁頂部應是玻璃膠囊，帳號按鈕可點；第一排內容保留工具列下方間距。
-7. 手機更多選單開啟時，不應同時看到下方原生 sheet；快速關閉並重開，確認播放頁仍可操作。
+7. 手機更多選單只應顯示原生 sheet，不再出現額外的上方 popover；快速關閉並重開，確認播放頁仍可操作。手機轉橫向應維持 Spotify 原本的直向政策。

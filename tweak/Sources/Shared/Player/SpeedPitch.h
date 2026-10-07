@@ -15,8 +15,7 @@
 // a menu presented from a now playing controller is taken for the player's without it, which is how the
 // native look's player gets the block.
 void SGPlayerMenuWatchMoreButton(UIView *button);
-// The two sliders alone, for a menu of a look's own that draws its own row for them (the redesign's
-// player menu, Redesigned/Player/PlayerMenu.x): SGSpeedPitchPanelHeight() tall at whatever width it is
+// The two sliders alone for a caller that draws its own row: SGSpeedPitchPanelHeight() tall at whatever width it is
 // given, showing the player's values as it is made.
 UIView *SGSpeedPitchPanelMake(void);
 CGFloat SGSpeedPitchPanelHeight(void);

@@ -22,7 +22,7 @@
 #import "Shared/Player/SpeedPitch.h"
 #import "Player.h"
 
-static char kGlassKey, kCloseKey, kMoreKey, kExpandKey;
+static char kGlassKey, kCloseKey, kMoreKey;
 
 static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers, const void **findKeys) {
     UIView *host = unit.viewIfLoaded;
@@ -56,18 +56,8 @@ static void glassInside(UIViewController *unit, NSArray<NSString *> *identifiers
 }
 
 static void layOutHeader(UIViewController *unit) {
-    static const void *keys[] = {&kCloseKey, &kMoreKey, &kExpandKey};
-    BOOL tablet = unit.view.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
-    glassInside(unit, tablet ? @[@"now-playing-minimize-button", @"Context menu", @"expand_collapse_button"] : @[@"now-playing-minimize-button", @"Context menu"], keys);
-    // Keep Spotify's live minimize control. Only expansion is unavailable in wide iPad windows.
-    if (UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad) {
-        UIView *expand = SGRFindByIdentifier(unit.viewIfLoaded, @"expand_collapse_button", &kExpandKey);
-        UIWindow *window = unit.viewIfLoaded.window;
-        BOOL locked = window && window.bounds.size.width > window.bounds.size.height;
-        expand.alpha = locked ? 0 : 1;
-        expand.userInteractionEnabled = !locked;
-        expand.accessibilityElementsHidden = locked;
-    }
+    static const void *keys[] = {&kCloseKey, &kMoreKey};
+    glassInside(unit, @[@"now-playing-minimize-button", @"Context menu"], keys);
 }
 
 %hook _TtC20NowPlaying_ModesImpl18HeaderElementsUnit

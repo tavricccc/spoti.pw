@@ -139,12 +139,6 @@ static NSArray<SGUpdateRelease *> *releasesToShow(void) {
                            @"clock.arrow.circlepath", [SGRepoURL stringByAppendingString:@"/releases"])];
     [groups addObject:group(nil, top)];
 
-    SGUpdateRow *notice = [SGUpdateRow new];
-    notice.title = @"Auto check updates";
-    notice.symbol = @"bell";
-    notice.key = SGKeyUpdateNotice;
-    [groups addObject:group(nil, @[notice])];
-
     for (SGUpdateRelease *release in releasesToShow()) {
         NSMutableArray<NSString *> *kinds = [NSMutableArray array];
         NSMutableDictionary<NSString *, NSMutableArray<SGUpdateRow *> *> *byKind = [NSMutableDictionary dictionary];

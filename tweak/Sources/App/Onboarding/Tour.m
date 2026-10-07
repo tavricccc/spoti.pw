@@ -299,7 +299,6 @@ static UIButton *glassButton(NSString *title) {
 }
 
 - (void)finish {
-    SGDonateAfterTour(self.needsRestart);
     SGSetEnabled(SGKeyOnboardingSeen, YES);
     SGSetRedesignedUI(_redesigned.selected);
     if (self.needsRestart) {

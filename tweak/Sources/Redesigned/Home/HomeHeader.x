@@ -1,6 +1,6 @@
-// Home redesign: the header the way the Music app has it. The filter pills (All, Music, Podcasts) go and
-// a large title takes their place at the leading edge; the avatar that opens the side drawer moves to the
-// trailing edge; the scrim Spotify lays behind the header goes too, the soft scroll edge (Kit/SGREdgeEffect.x)
+// Home redesign: a compact glass capsule on phone and iPad. The filter pills (All, Music, Podcasts) go and
+// the tab title and Spotify's live account button sit inside the capsule;
+// the scrim Spotify lays behind the header goes too, the soft scroll edge (Kit/SGREdgeEffect.x)
 // being what keeps the title clear of the page scrolling under it, as on every other redesigned page.
 //
 // Tree (trees/clean/home/10.txt:3018-3051): FunkisViewController's view holds a 402x112 UIView around
@@ -119,16 +119,14 @@ static void layoutHeader(UIViewController *page) {
     }
     [stack layoutIfNeeded];
 
-    BOOL tablet = header.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
     UIView *toolbar = objc_getAssociatedObject(header, &kToolbarKey);
-    if (tablet && !toolbar) {
+    if (!toolbar) {
         toolbar = [UIView new];
         toolbar.userInteractionEnabled = NO;
         toolbar.accessibilityElementsHidden = YES;
         objc_setAssociatedObject(header, &kToolbarKey, toolbar, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
         [header insertSubview:toolbar atIndex:0];
     }
-    toolbar.hidden = !tablet;
 
     UILabel *title = titleIn(header);
     NSString *text = tabName(header.window);
@@ -136,14 +134,13 @@ static void layoutHeader(UIViewController *page) {
         title.text = text;
         title.accessibilityLabel = text;
     }
-    UIFont *font = SGRFont(tablet ? UIFontTextStyleHeadline : UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+    UIFont *font = SGRFont(UIFontTextStyleHeadline, UIFontWeightBold, UIContentSizeCategoryLarge);
     if (![title.font isEqual:font]) title.font = font;
 
-    CGFloat trailing = face ? CGRectGetMinX([stack convertRect:face.frame toView:header]) - SGRGrid : header.bounds.size.width - SGRSideMargin;
     CGFloat height = ceil(font.lineHeight);
-    CGRect frame = CGRectMake(SGRSideMargin, round(CGRectGetMidY(stack.frame) - height / 2), MAX(0, trailing - SGRSideMargin), height);
-    if (tablet) {
-        // A compact floating toolbar, like Music's iPad header, instead of a phone-sized large title.
+    CGRect frame;
+    {
+        // Both sizes use the same toolbar and Spotify's native account action.
         // Spotify's account control stays live above the glass and keeps its own action.
         CGFloat pillWidth = MIN(header.bounds.size.width - SGRSideMargin * 2, MAX(220, ceil([text sizeWithAttributes:@{NSFontAttributeName:font}].width) + 120));
         CGFloat left = (header.bounds.size.width - pillWidth) / 2;
@@ -155,7 +152,7 @@ static void layoutHeader(UIViewController *page) {
             CGFloat target = left + pillWidth - 28;
             face.transform = CGAffineTransformMakeTranslation(target - CGRectGetMidX(native) + face.transform.tx, 0);
         }
-    } else if (face && !CGAffineTransformIsIdentity(face.transform)) face.transform = CGAffineTransformIdentity;
+    }
     if (!CGRectEqualToRect(title.frame, frame)) title.frame = frame;
     SGRHomeReserveToolbarSpace(page);
 

@@ -15,7 +15,6 @@ static const CGFloat kToolbarGap = 16;
 
 void SGRHomeReserveToolbarSpace(UIViewController *page) {
     UIView *root = page.viewIfLoaded;
-    if (root.traitCollection.userInterfaceIdiom != UIUserInterfaceIdiomPad) return;
     SGRHomeSpacing *spacing = objc_getAssociatedObject(page, &kSpacingKey);
     UICollectionView *feed = spacing.feed;
     if (!feed || ![feed isDescendantOfView:root]) {

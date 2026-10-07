@@ -20,11 +20,8 @@
 //                        and after a few seconds untouched the lines alone on the whole player
 //     PlayerLyricsContent.m  native cover masks and context captions restored as the lyrics close
 //     PlayerGestures.x   the gestures' hookup
-//     PlayerOrientation.x  rotation in the redesigned phone UI
 //     PlayerPresentation.x  iPad portrait Compact traits, native split in wide windows
 //     PlayerMorph.x      the open and close grown out of the now playing bar's card, the cover flown
-//     PlayerMenu.x       the ⋯ opening a menu the way the Music app draws one (SGRPlayerMenu.h), over
-//                        Spotify's own sheet, which it reads its rows from and keeps out of sight
 //
 // A Spotify Free account with pick and shuffle gets the player in another mode (NowPlayingReinventFreeMode),
 // whose header, information, duration, controls and footer units are classes of their own holding the
@@ -69,12 +66,6 @@ SGRWarpLook SGRPlayerFluidLook(void);
 extern NSNotificationName const SGRPlayerFluidLookDidChangeNotification;
 // The Player page's sections for the background: the choice, then the settings of the one picked.
 NSArray<SGModSection *> *SGRPlayerBackgroundSections(void);
-
-#pragma mark - the ⋯ menu (PlayerMenu.x)
-
-// Marks a sheet opened soon after a tap on `button`, the player's ⋯, as the one the menu takes over, and
-// the button as where the menu grows from (watching it twice does nothing).
-void SGRPlayerMenuWatchMoreButton(UIView *button);
 
 // The field behind the player, nil until the player has laid out once (PlayerField.x).
 SGRArtworkField *SGRPlayerField(void);

@@ -193,4 +193,3 @@ NSUInteger SGRHarnessLineSeeks(void) { return sg_lineSeeks; }
 
 // The isolated player harness has no native context menu or Speed and pitch presentation.
 void SGPlayerMenuWatchMoreButton(UIView *button) {}
-void SGRPlayerMenuWatchMoreButton(UIView *button) {}

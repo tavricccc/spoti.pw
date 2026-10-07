@@ -31,6 +31,8 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     UILabel *_title, *_artist;
     UIButton *_play;
     __weak UIImageView *_source;   // the artwork on Spotify's bar, watched for its picture
+    NSString *_artworkTrack;
+    NSUInteger _artworkGeneration;
     BOOL _swiping;
 }
 
@@ -157,10 +159,15 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     // Spotify's bar loads the new picture after the state arrives, and may have rebuilt the view that
     // shows it, so the view is looked for again and then watched.
     [self findArtwork];
+    NSString *uri = SGURIString(track.URI);
+    if (uri == _artworkTrack || [uri isEqualToString:_artworkTrack]) return;
+    _artworkTrack = uri;
+    NSUInteger generation = ++_artworkGeneration;
+    __weak typeof(self) weakSelf = self;
     for (NSNumber *delay in @[@0.3, @1, @2.5]) {
-        __weak typeof(self) weakSelf = self;
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(delay.doubleValue * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-            [weakSelf findArtwork];
+            SGRMiniPlayer *player = weakSelf;
+            if (player && player->_artworkGeneration == generation) [player findArtwork];
         });
     }
 }

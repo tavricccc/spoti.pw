@@ -171,6 +171,9 @@ static void styleNowPlayingBar(UIViewController *container) {
             if (v.userInteractionEnabled) v.userInteractionEnabled = NO;
             break;
         }
+        // The accessory reads Spotify's artwork and gestures above. A bar nobody draws needs no
+        // glass pane, paint stripping or progress-line layout on every container/child layout.
+        return;
     }
 
     UIView *card = sgr_nowPlayingCard;

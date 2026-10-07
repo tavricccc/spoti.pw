@@ -12,6 +12,7 @@
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/Player/PlayerState.h"
 #import "NowPlayingBar.h"
+#import "Redesigned/Kit/SGRTokens.h"
 
 // A swipe that goes this far across, or is let go of this fast, skips.
 static const CGFloat kCommitFraction = 0.25;
@@ -21,6 +22,8 @@ static char kImageContext;
 
 @interface SGRMiniPlayer : UIView <SGPlayerStateObserver, UIGestureRecognizerDelegate>
 @property (nonatomic, readonly) UIView *artworkView;
+- (void)togglePlay;
+- (BOOL)skipTrack:(BOOL)next;
 @end
 
 static __weak SGRMiniPlayer *sg_miniPlayer;
@@ -34,12 +37,16 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     NSString *_artworkTrack;
     NSUInteger _artworkGeneration;
     BOOL _swiping;
+    NSUInteger _swipeGeneration;
+    BOOL _hasPausedState, _pausedState;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
     if (!(self = [super initWithFrame:frame])) return nil;
     self.clipsToBounds = YES;
     self.overrideUserInterfaceStyle = UIUserInterfaceStyleDark;
+    self.isAccessibilityElement = YES;
+    self.accessibilityTraits = UIAccessibilityTraitButton;
 
     _content = [UIView new];
     [self addSubview:_content];
@@ -67,7 +74,22 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     _play = [UIButton buttonWithType:UIButtonTypeSystem];
     _play.tintColor = UIColor.whiteColor;
     _play.userInteractionEnabled = NO;
+    _play.isAccessibilityElement = NO;
     [self addSubview:_play];
+
+    __weak SGRMiniPlayer *weakSelf = self;
+    self.accessibilityCustomActions = @[
+        [[UIAccessibilityCustomAction alloc] initWithName:@"Play" actionHandler:^BOOL(UIAccessibilityCustomAction *action) {
+            [weakSelf togglePlay];
+            return weakSelf != nil;
+        }],
+        [[UIAccessibilityCustomAction alloc] initWithName:@"Next track" actionHandler:^BOOL(UIAccessibilityCustomAction *action) {
+            return [weakSelf skipTrack:YES];
+        }],
+        [[UIAccessibilityCustomAction alloc] initWithName:@"Previous track" actionHandler:^BOOL(UIAccessibilityCustomAction *action) {
+            return [weakSelf skipTrack:NO];
+        }],
+    ];
 
     UITapGestureRecognizer *tap = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(tapped:)];
     [self addGestureRecognizer:tap];
@@ -154,6 +176,7 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     if (![_title.text isEqualToString:title] || ![_artist.text isEqualToString:artist]) {
         _title.text = title;
         _artist.text = artist;
+        self.accessibilityLabel = artist.length ? [NSString stringWithFormat:@"%@, %@", title ?: @"", artist] : title;
         [self setNeedsLayout];
     }
     // Spotify's bar loads the new picture after the state arrives, and may have rebuilt the view that
@@ -197,9 +220,14 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
 }
 
 - (void)showPaused:(BOOL)paused {
+    if (_hasPausedState && paused == _pausedState) return;
+    _hasPausedState = YES;
+    _pausedState = paused;
     UIImage *image = [UIImage systemImageNamed:paused ? @"play.fill" : @"pause.fill"];
     if (![[_play imageForState:UIControlStateNormal] isEqual:image]) [_play setImage:image forState:UIControlStateNormal];
     _play.accessibilityLabel = paused ? @"Play" : @"Pause";
+    self.accessibilityValue = paused ? @"Paused" : @"Playing";
+    self.accessibilityCustomActions.firstObject.name = _play.accessibilityLabel;
 }
 
 #pragma mark - touches
@@ -216,9 +244,9 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     }
     [self showPaused:!paused];
     _play.transform = CGAffineTransformMakeScale(0.8, 0.8);
-    [UIView animateWithDuration:0.35 delay:0 usingSpringWithDamping:0.5 initialSpringVelocity:0 options:UIViewAnimationOptionAllowUserInteraction animations:^{
+    SGRAnimate(SGRMotionPress, ^{
         self->_play.transform = CGAffineTransformIdentity;
-    } completion:nil];
+    }, nil);
     id result = paused ? [player resume:nil] : [player pause:nil];
     SGLog(@"mini player: %@ -> %@", paused ? @"resume" : @"pause", result);
 }
@@ -235,6 +263,19 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     if (!SGROpenPlayerFromBar()) SGLog(@"mini player: nothing on Spotify's bar took the tap");
 }
 
+- (BOOL)accessibilityActivate {
+    return SGROpenPlayerFromBar();
+}
+
+- (BOOL)skipTrack:(BOOL)next {
+    id<SPTPlayer> player = SGKaraokePlayer();
+    SEL command = next ? @selector(skipToNextTrackWithOptions:) : @selector(skipToPreviousTrackWithOptions:);
+    if (![player respondsToSelector:command]) return NO;
+    if (next) [player skipToNextTrackWithOptions:nil];
+    else [player skipToPreviousTrackWithOptions:nil];
+    return YES;
+}
+
 // Only a sideways drag is a swipe; anything else is left to the page and to UIKit's own gestures.
 - (BOOL)gestureRecognizerShouldBegin:(UIGestureRecognizer *)recognizer {
     if (![recognizer isKindOfClass:UIPanGestureRecognizer.class]) return YES;
@@ -247,6 +288,7 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
     CGFloat dx = [pan translationInView:self].x;
     switch (pan.state) {
         case UIGestureRecognizerStateBegan:
+            _swipeGeneration++;
             _swiping = YES;
             break;
         case UIGestureRecognizerStateChanged:
@@ -267,29 +309,32 @@ static __weak SGRMiniPlayer *sg_miniPlayer;
 
 // Out the side it was swiped to, the player told, and in from the other side.
 - (void)skip:(BOOL)next {
+    // Commit when the gesture ends, rather than in an old animation's completion.
+    [self skipTrack:next];
+    if (SGRReduceMotion()) { [self settle]; return; }
+    NSUInteger generation = ++_swipeGeneration;
     CGFloat width = self.bounds.size.width;
     CGFloat out = next ? -width : width;
-    [UIView animateWithDuration:0.18 delay:0 options:UIViewAnimationOptionCurveEaseIn | UIViewAnimationOptionBeginFromCurrentState animations:^{
+    [UIView animateWithDuration:0.18 delay:0 options:UIViewAnimationOptionCurveEaseIn | UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction animations:^{
         self->_content.transform = CGAffineTransformMakeTranslation(out, 0);
         self->_content.alpha = 0;
     } completion:^(BOOL finished) {
-        id<SPTPlayer> player = SGKaraokePlayer();
-        SEL command = next ? @selector(skipToNextTrackWithOptions:) : @selector(skipToPreviousTrackWithOptions:);
-        id result = [player respondsToSelector:command] ? (next ? [player skipToNextTrackWithOptions:nil] : [player skipToPreviousTrackWithOptions:nil]) : nil;
-        SGLog(@"mini player: swipe %@ -> %@ (player %@)", next ? @"next" : @"previous", result, player ? NSStringFromClass([(id)player class]) : @"nil");
+        if (generation != self->_swipeGeneration) return;
         self->_content.transform = CGAffineTransformMakeTranslation(-out * 0.4, 0);
         [self settle];
     }];
 }
 
 - (void)settle {
-    [UIView animateWithDuration:0.45 delay:0 usingSpringWithDamping:0.85 initialSpringVelocity:0
-                        options:UIViewAnimationOptionBeginFromCurrentState | UIViewAnimationOptionAllowUserInteraction animations:^{
+    NSUInteger generation = ++_swipeGeneration;
+    SGRAnimate(SGRMotionLayout, ^{
         self->_content.transform = CGAffineTransformIdentity;
         self->_content.alpha = 1;
-    } completion:^(BOOL finished) {
-        if (finished) self->_swiping = NO;
-    }];
+    }, ^(BOOL finished) {
+        if (generation != self->_swipeGeneration) return;
+        self->_swiping = NO;
+        [self setNeedsLayout];
+    });
 }
 
 @end

@@ -5,7 +5,7 @@
 ## 播放頁策略
 
 - iPad 播放頁的 `now-playing-toggle-button` 固定透明，觸控與輔助使用入口停用；原生 minimize 按鈕保留。初始模式固定為 `Collapsed`。
-- 直向全螢幕轉成寬視窗後，regular animator 在旋轉完成時，以原生 completion 串接關閉 expanded overlay 與呈現 side attachment。沒有直接截斷低層 `expand`。
+- 直向全螢幕轉成寬視窗後，MainUIContainer 在旋轉完成時，以原生 completion 串接關閉 expanded overlay 與呈現 side attachment；由目前的 barAnimator 處理模式切換。沒有直接截斷低層 `expand`。
 - iPad 高視窗在 UIWindow 套用 Compact horizontal size class，讓 Spotify 使用既有窄視窗排版與轉場。視窗變寬時移除 override，恢復系統環境；沒有偽造 UIDevice 型號。
 - 移除直／橫向初始全螢幕設定、自製橫向播放器、額外收合箭頭／手勢、直向 split 控制群位移。旧設定不再讀取。
 - Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據實際玻璃 bar 寬高與文字大小隱藏／還原標籤；上下排圖示與文字時，額外保留 8pt 間距及上下留白。窄視窗擠壓時自動隱藏，不再只量 Spotify 外層面板寬度。
@@ -41,7 +41,7 @@ iPad 直向歌詞的封面／歌名使用 24pt 左邊界，對齊歌詞文字。
 
 真正的控制來自 `ToggleButtonElementUI`：view getter `0x104b0e604` → constructor `0x1023d1c78` → `0x10306a548` → `setAccessibilityIdentifier:`，字串 `now-playing-toggle-button` 位於 `0x10a6835b0`。constructor 綁定 `UIControlEventTouchUpInside`，可從控制入口完整停用，而不跳過原生轉場的狀態收尾。舊的 identifier 猜測與 root view 掃描已移除。
 
-`NowPlayingRegularAnimator` 的 `setExpandedUIVisibility:navigationReason:completion:`（`0x106843568`）在值 1 走 `dismissViewController:animated:reason:completion:`；`setReducedUIMode:navigationReason:completion:`（`0x107bb9c90`）值 1 經 `0x107a027f0` 呼叫 `presentSideAttachmentWithtransitionStyle:completion:`。旋轉委派 `rootContentPresenter:willTransitionTo:with:` 位於 `0x101e2b698`；使用原生 `SPTUBINavigationReason +passthrough`（`0x108130028`）。
+`NowPlayingRegularAnimator` 的 `setExpandedUIVisibility:navigationReason:completion:`（`0x106843568`）在值 1 走 `dismissViewController:animated:reason:completion:`；`setReducedUIMode:navigationReason:completion:`（`0x107bb9c90`）值 1 經 `0x107a027f0` 呼叫 `presentSideAttachmentWithtransitionStyle:completion:`。MainUIContainer 的對應 setter（`0x105942c98`／`0x10791f060`）轉送到目前的 `barAnimator`（selref `0x10cdd5c30`），其旋轉委派位於 `0x105625920`；使用原生 `SPTUBINavigationReason +passthrough`（`0x108130028`）。
 
 尚未找到一個能可靠停用整個 tablet／side attachment 排版的 flag。沒有修改 `sideAttachment` 或偽造 `isActive`；binary 顯示 `sideAttachment` 是必要容器值，直接返回 nil 會進入 trap。
 

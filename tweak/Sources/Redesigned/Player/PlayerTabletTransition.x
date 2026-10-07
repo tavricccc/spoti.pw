@@ -5,6 +5,8 @@
 // setReducedUIMode:navigationReason:completion: 0x107bb9c90 -> 0x1042061d4:
 // value 1 calls 0x107a027f0 -> presentSideAttachmentWithtransitionStyle:completion:.
 // The two original completions preserve state/interaction and finish the native transitions.
+// MainUIContainer's setters (0x105942c98 / 0x10791f060) forward to its current
+// barAnimator (selref 0x10cdd5c30). Its rotation delegate is 0x105625920.
 #import "Core/SGCore.h"
 
 @protocol SGRTabletAnimator <NSObject>
@@ -13,7 +15,7 @@
 - (void)setReducedUIMode:(NSInteger)value navigationReason:(id)reason completion:(dispatch_block_t)completion;
 @end
 
-%hook _TtC19MainUI_TabBarUIImpl25NowPlayingRegularAnimator
+%hook _TtC19MainUI_TabBarUIImpl15MainUIContainer
 - (void)rootContentPresenter:(id)presenter willTransitionTo:(CGSize)size with:(id<UIViewControllerTransitionCoordinator>)coordinator {
     %orig;
     if (size.width <= size.height) return;
@@ -34,5 +36,5 @@
     if (!SGRedesignedUI() || UIDevice.currentDevice.userInterfaceIdiom != UIUserInterfaceIdiomPad) return;
     if (![NSBundle.mainBundle.infoDictionary[@"CFBundleShortVersionString"] isEqualToString:@"9.1.78"]) return;
     %init;
-    SGRequireClasses(@[@"_TtC19MainUI_TabBarUIImpl25NowPlayingRegularAnimator", @"SPTUBINavigationReason"]);
+    SGRequireClasses(@[@"_TtC19MainUI_TabBarUIImpl15MainUIContainer", @"SPTUBINavigationReason"]);
 }

@@ -7,7 +7,7 @@
 - Mod Settings → Player → iPad player：`Full screen in portrait`、`Full screen in landscape` 分開控制直向與橫向首次開啟播放頁時是否使用 Expanded。預設皆關閉；修改後重啟 Spotify。方向依目前視窗尺寸判斷；播放頁已開啟時轉向，請收合並重新開啟，套用新方向的初始設定。這不是關閉整個 tablet 排版的開關。
 - Mod Settings → Navbar → Labels：Show、Hide、Auto。Auto 根據目前導覽列所在面板的寬度與文字大小隱藏／還原標籤，立即生效。原 Hide labels 設定會遷移到新選項。
 
-全螢幕播放頁向下滑會觸發 Spotify 原生收合按鈕；目前是放開手指後收合，不是跟隨手指的互動轉場。歌詞捲動保留原用途，開啟歌詞時從頂部下滑收合；VoiceOver 開啟時使用收合按鈕。
+手機與 iPad 全螢幕播放頁向下滑使用共用收合入口；目前是放開手指後收合，不是跟隨手指的互動轉場。原生 minimize 按鈕不存在時，改呼叫呈現它的 side attachment 或 UIKit modal；原生 expanded overlay 則可使用自身的 expand／condense 動作收回分割面板。畫面會保留可點的向下箭頭：橫向由新的播放器面板提供，直向原生缺少時補上。歌詞捲動保留原用途，開啟歌詞時從頂部下滑收合；VoiceOver 開啟時使用收合按鈕。
 
 ## 本次變更
 
@@ -42,7 +42,7 @@ Redesigned 的手機與 iPad 全螢幕橫向播放器使用相同版型：沒有
 
 ## Build 與實機檢查
 
-Windows 本機已檢查 Logos 預處理、來源分層與 shell 語法；沒有 Apple SDK，尚未完成 iOS 編譯或實機驗證。
+Windows 本機檢查 Logos 預處理、來源分層、plist 與 shell 語法；iOS 編譯交由下方 macOS Actions 完成。成功建置仍不代表完成實機互動與視覺驗證。
 
 將 `continue` 分支推到 GitHub，再執行 Actions → **Build IPA from your own Spotify IPA**，選擇 `continue`，`ipa_url` 使用可直接下載的已解密 Spotify 9.1.78 IPA 網址，`upload_method` 選 artifacts。Actions 無法讀取電腦上的 `C:\...` 路徑；完成後下載 `spoti.ipa` artifact 並使用原本流程簽名安裝。
 

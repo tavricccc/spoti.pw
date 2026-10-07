@@ -22,7 +22,6 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Shared/Haptics/Haptics.h"
 #import "Player.h"
-#import "PlayerLandscape.h"
 
 static const CGFloat kSkipGlyphSize = 32, kPlayGlyphSize = 44;
 // A spinner that is still up this long after a state change is buffering, not a track starting.
@@ -177,7 +176,6 @@ static void playGlyph(UIView *host) {
 }
 
 static void layOutControls(UIViewController *unit) {
-    SGRPlayerLandscapeUnit(unit);
     UIView *host = unit.viewIfLoaded;
     if (!host) return;
     // The unit lays out before its row does, and the glyphs are centred on the buttons in it.

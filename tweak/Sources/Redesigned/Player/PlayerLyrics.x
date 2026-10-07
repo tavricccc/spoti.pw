@@ -53,8 +53,6 @@
 #import "Shared/Lyrics/Lyrics.h"
 #import "Shared/Sing/SGSingController.h"
 #import "Player.h"
-#import "PlayerLandscape.h"
-#import "PlayerDismiss.h"
 
 static const CGFloat kThumbSide = 48;          // compact Music-style cover while portrait lyrics are up
 static const CGFloat kThumbGap = 12;           // between the thumbnail and the title beside it
@@ -263,14 +261,6 @@ static CGRect untransformed(UIView *view, UIView *host) {
 
 static SGRLyricsLayout layoutIn(UIView *host) {
     SGRLyricsLayout l = {0};
-    if (SGRPlayerLandscape(host)) {
-        l.cover = SGRPlayerCoverFrameIn(host);
-        if (CGRectIsNull(l.cover)) l.cover = CGRectMake(0, 0, 1, 1);
-        l.thumb = l.cover;
-        l.stage = l.room = SGRPlayerLandscapeLyricsRect(host);
-        l.ok = l.stage.size.width > 100 && l.stage.size.height > 100;
-        return l;
-    }
     UIView *info = sg_info.viewIfLoaded, *duration = sg_duration.viewIfLoaded, *title = sg_titleElement;
     if (!host || host.bounds.size.height < kLivingHeight || !info || !duration) return l;
     if (![info isDescendantOfView:host] || ![duration isDescendantOfView:host]) return l;
@@ -357,11 +347,6 @@ static void clipTitle(UIView *element, CGFloat width) {
 static void placeTitleRow(SGRLyricsLayout l) {
     UIView *info = sg_info.viewIfLoaded;
     if (!info) return;
-    if (SGRPlayerLandscape(sg_host)) {
-        info.transform = CGAffineTransformIdentity;
-        sg_titleElement.transform = CGAffineTransformIdentity;
-        return;
-    }
     [SGRowIn(info) layoutIfNeeded];
     CGFloat lift = sg_open ? l.lift : 0, shift = sg_open ? l.shift : 0;
     CGAffineTransform rise = CGAffineTransformMakeTranslation(0, round(lift));
@@ -484,7 +469,7 @@ static BOOL mayGoAlone(void) {
 // and so does the app coming back (the %ctor).
 static void scheduleAlone(void) {
     stopAloneTimer();
-    if (!sg_open || sg_alone || SGRPlayerLandscape(sg_host)) return;
+    if (!sg_open || sg_alone) return;
     sg_aloneTimer = [NSTimer scheduledTimerWithTimeInterval:kAloneAfter repeats:NO block:^(NSTimer *timer) {
         sg_aloneTimer = nil;
         if (mayGoAlone()) setAlone(YES, YES);
@@ -562,7 +547,6 @@ static void place(SGRPlayerLyricsOverlay *overlay, UIView *host, SGRLyricsLayout
     overlay.stage.bounds = (CGRect){CGPointZero, stage.size};
     overlay.stage.center = CGPointMake(CGRectGetMidX(stage), CGRectGetMidY(stage));
     overlay.empty.frame = UIEdgeInsetsInsetRect(overlay.stage.bounds, bandOf(l, NO));
-    overlay.thumb.hidden = SGRPlayerLandscape(host);
 }
 
 // Where the thumbnail's view has to go to land on `l.thumb`, as a transform about its own centre: the
@@ -683,9 +667,7 @@ void SGRPlayerToggleLyrics(void) {
 static void replace(void) {
     UIView *host = sg_host;
     if (!host || sg_moving) return;   // a pass in the middle of the transition would cut it short
-    if (SGRPlayerLandscape(host) && sg_alone) setAlone(NO, NO);
-    SGRPlayerLandscapeLayout(host);
-    SGRPlayerLyricsCoverHidden(host, sg_open || SGRPlayerLandscape(host));
+    SGRPlayerLyricsCoverHidden(host, sg_open);
     SGRLyricsLayout l = layoutIn(host);
     if (sg_open && !l.ok) return;
     SGRPlayerHeaderFollowLyrics(sg_header.viewIfLoaded, sg_open);
@@ -718,7 +700,6 @@ static void replace(void) {
     sg_player = (UIViewController *)self;
     watchTouches(host);
     replace();
-    SGRPlayerDismissLayout(host);
 }
 
 // The bar morphs back out of a full size cover as the player closes, so the thumbnail is put away first.
@@ -731,14 +712,12 @@ static void replace(void) {
 // The header row goes with the rest of the controls while the lines are alone.
 static void headerLaidOut(UIViewController *unit) {
     sg_header = unit;
-    SGRPlayerLandscapeUnit(unit);
     SGRPlayerHeaderFollowLyrics(unit.viewIfLoaded, sg_open);
     if (sg_alone) fadeControl(sg_header.viewIfLoaded, 0);
 }
 
 static void infoLaidOut(UIViewController *unit) {
     sg_info = unit;
-    SGRPlayerLandscapeUnit(unit);
     UIView *host = unit.viewIfLoaded;
     // The title and the artist are two labels of one arranged element view, which is what moves.
     UIView *label = SGRFindByIdentifier(host, @"now-playing-title-label", &kTitleKey);
@@ -756,7 +735,6 @@ static void infoLaidOut(UIViewController *unit) {
 
 static void durationLaidOut(UIViewController *unit) {
     sg_duration = unit;
-    SGRPlayerLandscapeUnit(unit);
     replace();
 }
 

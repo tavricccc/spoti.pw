@@ -19,7 +19,7 @@
 // How far the cover sits in from the tile's top, bottom and leading edges, and its corners there.
 static const CGFloat kInset = 5, kCoverRadius = 4;
 
-static char kSurfaceKey, kImageKey, kShownKey;
+static char kSurfaceKey, kImageKey, kShownKey, kObservedKey;
 
 // Tints already worked out, by the image object while it lives (main thread only).
 static NSMapTable<UIImage *, UIColor *> *tints(void) {
@@ -108,8 +108,7 @@ static void tint(UIView *tile, UIView *surface, UIColor *color, BOOL animated) {
     SGRAnimate(SGRMotionFade, ^{ surface.backgroundColor = color; }, nil);
 }
 
-static void refresh(UIView *tile) {
-    SGRTileParts *parts = partsOf(tile);
+static void refresh(UIView *tile, SGRTileParts *parts) {
     UIImageView *cover = parts.cover;
     UIView *square = parts.square;
     if (!cover || !square || square.bounds.size.width < 20 || tile.bounds.size.width <= square.bounds.size.width) return;
@@ -143,14 +142,21 @@ static void refresh(UIView *tile) {
 
 void SGRHomeStyleTile(UIView *tile) {
     CFTimeInterval began = SGRHomeProbeBegin();
-    UIImageView *cover = partsOf(tile).cover;
+    SGRTileParts *parts = partsOf(tile);
+    UIImageView *cover = parts.cover;
     if (!cover) return;
-    __weak UIView *weakTile = tile;
-    // The block is replaced on every pass, so a cover taken into another tile tells the tile it is in now.
-    SGRObserveImage(cover, ^(UIImageView *view) {
-        UIView *strongTile = weakTile;
-        if (strongTile && [view isDescendantOfView:strongTile]) refresh(strongTile);
-    });
-    refresh(tile);
+    NSHashTable *observed = objc_getAssociatedObject(cover, &kObservedKey);
+    if (observed.anyObject != tile) {
+        // Cache the observed owner weakly; reused image views install a new owner only when needed.
+        __weak UIView *weakTile = tile;
+        NSHashTable *owner = [NSHashTable weakObjectsHashTable];
+        [owner addObject:tile];
+        objc_setAssociatedObject(cover, &kObservedKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        SGRObserveImage(cover, ^(UIImageView *view) {
+            UIView *strongTile = weakTile;
+            if (strongTile && [view isDescendantOfView:strongTile]) refresh(strongTile, partsOf(strongTile));
+        });
+    }
+    refresh(tile, parts);
     SGRHomeProbeEnd(SGRHomeProbeTiles, began);
 }

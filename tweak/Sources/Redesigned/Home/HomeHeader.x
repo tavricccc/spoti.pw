@@ -25,7 +25,7 @@
 // Tries at finding the tab's name before settling for the English one: a miss walks the window.
 static const NSUInteger kTitleTries = 8;
 
-static char kTitleKey, kTabKey;
+static char kTitleKey, kTabKey, kToolbarKey, kToolbarGlassKey;
 static NSString *sg_tabName;
 
 static void vanish(UIView *view) {
@@ -118,18 +118,43 @@ static void layoutHeader(UIViewController *page) {
     }
     [stack layoutIfNeeded];
 
+    BOOL tablet = header.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    UIView *toolbar = objc_getAssociatedObject(header, &kToolbarKey);
+    if (tablet && !toolbar) {
+        toolbar = [UIView new];
+        toolbar.userInteractionEnabled = NO;
+        toolbar.accessibilityElementsHidden = YES;
+        objc_setAssociatedObject(header, &kToolbarKey, toolbar, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        [header insertSubview:toolbar atIndex:0];
+    }
+    toolbar.hidden = !tablet;
+
     UILabel *title = titleIn(header);
     NSString *text = tabName(header.window);
     if (![title.text isEqualToString:text]) {
         title.text = text;
         title.accessibilityLabel = text;
     }
-    UIFont *font = SGRFont(UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+    UIFont *font = SGRFont(tablet ? UIFontTextStyleHeadline : UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
     if (![title.font isEqual:font]) title.font = font;
 
     CGFloat trailing = face ? CGRectGetMinX([stack convertRect:face.frame toView:header]) - SGRGrid : header.bounds.size.width - SGRSideMargin;
     CGFloat height = ceil(font.lineHeight);
     CGRect frame = CGRectMake(SGRSideMargin, round(CGRectGetMidY(stack.frame) - height / 2), MAX(0, trailing - SGRSideMargin), height);
+    if (tablet) {
+        // A compact floating toolbar, like Music's iPad header, instead of a phone-sized large title.
+        // Spotify's account control stays live above the glass and keeps its own action.
+        CGFloat pillWidth = MIN(header.bounds.size.width - SGRSideMargin * 2, MAX(220, ceil([text sizeWithAttributes:@{NSFontAttributeName:font}].width) + 120));
+        CGFloat left = (header.bounds.size.width - pillWidth) / 2;
+        toolbar.frame = CGRectMake(left, CGRectGetMidY(stack.frame) - 24, pillWidth, 48);
+        SGRGlassCapsuleInside(toolbar, &kToolbarGlassKey, toolbar.bounds.size, NO);
+        frame = CGRectMake(left + 24, CGRectGetMidY(stack.frame) - height / 2, pillWidth - 88, height);
+        if (face) {
+            CGRect native = [stack convertRect:face.frame toView:header];
+            CGFloat target = left + pillWidth - 28;
+            face.transform = CGAffineTransformMakeTranslation(target - CGRectGetMidX(native) + face.transform.tx, 0);
+        }
+    } else if (face && !CGAffineTransformIsIdentity(face.transform)) face.transform = CGAffineTransformIdentity;
     if (!CGRectEqualToRect(title.frame, frame)) title.frame = frame;
 
     static dispatch_once_t once;

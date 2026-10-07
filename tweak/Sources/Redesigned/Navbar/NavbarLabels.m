@@ -25,8 +25,15 @@ BOOL SGRNavbarLabelsFit(NSArray<NSString *> *titles, CGFloat width) {
     // iPad's floating bar places the glyph beside its title. Measure that wider layout so
     // a narrow split pane drops labels before UIKit clips them. Dynamic Type participates.
     UIFont *font = [UIFontMetrics.defaultMetrics scaledFontForFont:[UIFont systemFontOfSize:15 weight:UIFontWeightSemibold]];
-    CGFloat needed = 32;
-    for (NSString *title in titles)
-        needed += MAX(64, ceil([title sizeWithAttributes:@{NSFontAttributeName:font}].width) + 56);
+    static NSArray<NSString *> *measuredTitles;
+    static UIFont *measuredFont;
+    static CGFloat needed;
+    if (![measuredTitles isEqualToArray:titles] || ![measuredFont isEqual:font]) {
+        measuredTitles = [titles copy];
+        measuredFont = font;
+        needed = 32;
+        for (NSString *title in titles)
+            needed += MAX(64, ceil([title sizeWithAttributes:@{NSFontAttributeName:font}].width) + 56);
+    }
     return needed <= width;
 }

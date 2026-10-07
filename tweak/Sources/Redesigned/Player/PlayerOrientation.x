@@ -2,17 +2,20 @@
 // 0x106ccb640; SPNavigationController supportedInterfaceOrientations 0x1010921a4,
 // shouldAutorotate 0x10851a084; NowPlayingViewController shouldAutorotate 0x10750deb0.
 #import "Core/SGCore.h"
+#import "Redesigned/Kit/SGRKit.h"
 #import "Player.h"
 
 %hook _TtC24MusicApp_ContainerWiring18SpotifyAppDelegate
 - (UIInterfaceOrientationMask)application:(UIApplication *)application supportedInterfaceOrientationsForWindow:(UIWindow *)window {
-    return %orig | UIInterfaceOrientationMaskLandscape;
+    UIInterfaceOrientationMask mask = %orig;
+    return mask | UIInterfaceOrientationMaskLandscape;
 }
 %end
 
 %hook SPNavigationController
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations {
-    return %orig | UIInterfaceOrientationMaskLandscape;
+    UIInterfaceOrientationMask mask = %orig;
+    return mask | UIInterfaceOrientationMaskLandscape;
 }
 - (BOOL)shouldAutorotate { return !SGRPlayerIsTransitioning(); }
 %end
@@ -23,7 +26,10 @@
 %end
 
 %hook _TtC23NowPlaying_ViewPageImpl26NowPlayingOverlayContainer
-- (UIInterfaceOrientationMask)supportedInterfaceOrientations { return %orig | UIInterfaceOrientationMaskLandscape; }
+- (UIInterfaceOrientationMask)supportedInterfaceOrientations {
+    UIInterfaceOrientationMask mask = %orig;
+    return mask | UIInterfaceOrientationMaskLandscape;
+}
 %end
 
 %ctor {

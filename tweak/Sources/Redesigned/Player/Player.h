@@ -20,6 +20,10 @@
 //                        and after a few seconds untouched the lines alone on the whole player
 //     PlayerLyricsContent.m  native cover masks and context captions restored as the lyrics close
 //     PlayerGestures.x   the gestures' hookup
+//     PlayerLandscape.m  the centered landscape player and its lyrics/control columns
+//     PlayerOrientation.x  rotation in the redesigned phone UI
+//     PlayerPresentation.x  iPad's native initial Expanded/Collapsed mode by window orientation
+//     PlayerDismiss.m    shared fullscreen dismissal, downward gesture and missing close arrow
 //     PlayerMorph.x      the open and close grown out of the now playing bar's card, the cover flown
 //     PlayerMenu.x       the ⋯ opening a menu the way the Music app draws one (SGRPlayerMenu.h), over
 //                        Spotify's own sheet, which it reads its rows from and keeps out of sight

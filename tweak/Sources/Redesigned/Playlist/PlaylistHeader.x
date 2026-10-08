@@ -525,6 +525,15 @@ static void applyHeader(UIView *layout) {
     if (!block) return;
 
     UIView *plane = applyBackground(layout);
+    static char viewportKey;
+    CGSize viewport = SGRPlaylistPageOf(layout).bounds.size;
+    NSValue *previous = objc_getAssociatedObject(layout, &viewportKey);
+    if (viewport.width > 0 && viewport.height > 0 && (!previous || !CGSizeEqualToSize(previous.CGSizeValue, viewport))) {
+        objc_setAssociatedObject(layout, &viewportKey, [NSValue valueWithCGSize:viewport], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(plane, &kRestPlaneKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(objc_getAssociatedObject(plane, &kHeroKey), &kHeroHeightKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(block, &kBlockHeightKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     applyToolbar(headerRoot);
     applyScrims(headerRoot);
     SGRHeaderInfo *info = applyInfo(block, headerRoot, headerVC);

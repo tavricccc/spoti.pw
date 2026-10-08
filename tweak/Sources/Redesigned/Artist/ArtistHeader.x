@@ -248,6 +248,14 @@ static void applyHeader(UIView *header) {
     UIView *artwork = SGRFindByIdentifier(header, @"Components.Header.UI.ArtworkImage", &kArtworkKey);
     UIView *page = SGRArtistPageOf(container);
     if (!container || !artwork || !page) return;
+    static char viewportKey;
+    CGSize viewport = page.bounds.size;
+    NSValue *previous = objc_getAssociatedObject(container, &viewportKey);
+    if (viewport.width > 0 && viewport.height > 0 && (!previous || !CGSizeEqualToSize(previous.CGSizeValue, viewport))) {
+        objc_setAssociatedObject(container, &viewportKey, [NSValue valueWithCGSize:viewport], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(container, &kContainerHeightKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(objc_getAssociatedObject(container, &kHeroKey), &kHeroHeightKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     // The photo header the redesign lays out: the page's curtain waits for all of it (ArtistField.x put it up).
     SGRRevealHold(page, SGRRevealPage);
 

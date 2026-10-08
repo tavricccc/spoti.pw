@@ -61,6 +61,9 @@ static NSString *wordIn(UIView *button) {
 
     _title = [UILabel new];
     _title.userInteractionEnabled = NO;
+    _title.adjustsFontSizeToFitWidth = YES;
+    _title.minimumScaleFactor = 0.85;
+    _title.lineBreakMode = NSLineBreakByTruncatingTail;
     [self addSubview:_title];
 
     self.isAccessibilityElement = YES;
@@ -72,8 +75,8 @@ static NSString *wordIn(UIView *button) {
 }
 
 - (CGFloat)sgr_width {
-    [_title sizeToFit];
-    return kCapsuleLead + kGlyphSide + ceil(_title.bounds.size.width) + kCapsuleTrail;
+    CGFloat word = [_title sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)].width;
+    return kCapsuleLead + kGlyphSide + ceil(word) + kCapsuleTrail;
 }
 
 - (void)layoutSubviews {

@@ -501,6 +501,14 @@ static void applyWash(UIView *page) {
 
 static void applyHeader(UIView *header, UIView *page) {
     if (!SGRFindByIdentifier(header, @"CreativeWorkPlatform.Components.UI.TitleRow", &kTitleKey)) return;
+    static char viewportKey;
+    CGSize viewport = page.bounds.size;
+    NSValue *previous = objc_getAssociatedObject(header, &viewportKey);
+    if (viewport.width > 0 && viewport.height > 0 && (!previous || !CGSizeEqualToSize(previous.CGSizeValue, viewport))) {
+        objc_setAssociatedObject(header, &viewportKey, [NSValue valueWithCGSize:viewport], OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(header, &kHeaderHeightKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        objc_setAssociatedObject(objc_getAssociatedObject(header, &kHeroKey), &kHeroHeightKey, nil, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+    }
     // An album's page: its curtain waits for all of it (AlbumField.x put it up).
     SGRRevealHold(page, SGRRevealPage);
     applyWash(page);

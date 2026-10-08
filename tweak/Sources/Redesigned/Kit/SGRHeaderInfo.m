@@ -5,12 +5,13 @@
 #import "SGRActionRow.h"
 #import "SGRRestyle.h"
 #import "SGRTokens.h"
+#import "SGRAdaptiveLayout.h"
 
 const CGFloat SGRHeaderInfoBottom = 14;
 const CGFloat SGRHeaderInfoTitleRise = 56;
 
 // The text kSide in from the edges; Play at least kPlayWidth wide, the Music app's; the gaps between.
-static const CGFloat kSide = 20, kPlayWidth = 148, kRowSpacing = 16, kRowAbove = 16, kAboutAbove = 14;
+static const CGFloat kPlayWidth = 148, kRowAbove = 16, kAboutAbove = 14;
 // The faces: Spotify's 24pt, overlap and 8pt gap, but no taller than the name's line, so none moves the title.
 static const CGFloat kFaceMax = 22, kFaceStep = 0.85, kFaceGap = 8, kFaceRing = 1.5;
 static const NSUInteger kFaceCap = 3;
@@ -256,7 +257,7 @@ static BOOL sameImages(NSArray<UIImage *> *a, NSArray<UIImage *> *b) {
     NSUInteger count = _faceImages.count;
     CGFloat side = MIN(kFaceMax, ceil(_creator.font.lineHeight) + 1), step = round(side * kFaceStep);
     CGFloat faces = count ? side + (count - 1) * step : 0, lead = count ? faces + kFaceGap : 0;
-    CGFloat name = MIN(ceil([_creator sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)].width), line.size.width - lead);
+    CGFloat name = MAX(0, MIN(ceil([_creator sizeThatFits:CGSizeMake(CGFLOAT_MAX, CGFLOAT_MAX)].width), line.size.width - lead));
     CGFloat x = line.origin.x + round((line.size.width - lead - name) / 2);
     BOOL rtl = self.effectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft;
     _creator.frame = CGRectMake(rtl ? x : x + lead, line.origin.y, name, line.size.height);
@@ -323,7 +324,8 @@ static BOOL sameImages(NSArray<UIImage *> *a, NSArray<UIImage *> *b) {
 }
 
 - (CGFloat)contentHeightForWidth:(CGFloat)width {
-    CGFloat text = MAX(0, width - 2 * kSide), height = 0;
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    CGFloat text = SGRPageMetricsFor(width, tablet).textWidth, height = 0;
     UILabel *previous = nil;
     for (UILabel *label in @[_title, _creator, _length]) {
         if (label.hidden) continue;
@@ -339,7 +341,10 @@ static BOOL sameImages(NSArray<UIImage *> *a, NSArray<UIImage *> *b) {
 
 - (void)layoutSubviews {
     [super layoutSubviews];
-    CGFloat width = self.bounds.size.width, text = MAX(0, width - 2 * kSide);
+    CGFloat width = self.bounds.size.width;
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    SGRPageMetrics metrics = SGRPageMetricsFor(width, tablet);
+    CGFloat text = metrics.textWidth;
     CGFloat y = round(self.bounds.size.height - SGRHeaderInfoBottom - [self contentHeightForWidth:width]);
 
     UILabel *previous = nil;
@@ -347,8 +352,8 @@ static BOOL sameImages(NSArray<UIImage *> *a, NSArray<UIImage *> *b) {
         if (label.hidden) continue;
         if (previous) y += previous == _creator ? 4 : 2;
         CGFloat height = ceil([label sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height);
-        if (label == _creator) [self sgr_layoutCreator:CGRectMake(kSide, y, text, height)];
-        else label.frame = CGRectMake(kSide, y, text, height);
+        if (label == _creator) [self sgr_layoutCreator:CGRectMake(metrics.textX, y, text, height)];
+        else label.frame = CGRectMake(metrics.textX, y, text, height);
         y += height;
         previous = label;
     }
@@ -358,16 +363,17 @@ static BOOL sameImages(NSArray<UIImage *> *a, NSArray<UIImage *> *b) {
     // Play on the middle of the page, the other two hung off its sides, so it holds its place whether both
     // are there or not.
     CGFloat side = SGRActionHeight;
-    CGFloat playWidth = MAX(kPlayWidth, [_play sgr_width]);
-    CGRect play = CGRectMake(round((width - playWidth) / 2), y, playWidth, side);
+    SGRHeaderActionsLayout actions = SGRHeaderActionsFor(width, MAX(kPlayWidth, [_play sgr_width]),
+        tablet, !_shuffle.hidden, !_trailing.hidden);
+    CGRect play = CGRectMake(round(actions.playX), y, actions.playWidth, side);
     _play.frame = play;
-    _shuffle.frame = CGRectMake(CGRectGetMinX(play) - kRowSpacing - side, y, side, side);
-    _trailing.frame = CGRectMake(CGRectGetMaxX(play) + kRowSpacing, y, side, side);
+    _shuffle.frame = CGRectMake(round(actions.shuffleX), y, side, side);
+    _trailing.frame = CGRectMake(round(actions.trailingX), y, side, side);
     y += side;
 
     if (!_about.hidden) {
         y += kAboutAbove;
-        _about.frame = CGRectMake(kSide, y, text, ceil([_about sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height));
+        _about.frame = CGRectMake(metrics.textX, y, text, ceil([_about sizeThatFits:CGSizeMake(text, CGFLOAT_MAX)].height));
     }
 }
 

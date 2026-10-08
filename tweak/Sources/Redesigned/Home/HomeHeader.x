@@ -22,11 +22,12 @@
 #import "Redesigned/Kit/SGRKit.h"
 #import "Home.h"
 #import "HomeSpacing.h"
+#import "Redesigned/Kit/SGRAdaptiveLayout.h"
 
 // Tries at finding the tab's name before settling for the English one: a miss walks the window.
 static const NSUInteger kTitleTries = 8;
 
-static char kTitleKey, kTabKey, kToolbarKey, kToolbarGlassKey;
+static char kTitleKey, kTabKey, kToolbarKey, kToolbarGlassKey, kStackOwnerKey;
 static NSString *sg_tabName;
 
 static void vanish(UIView *view) {
@@ -84,6 +85,8 @@ static __weak UIView *sg_scrim;
 
 static BOOL findHeader(UIView *view) {
     if (sg_stack && [sg_stack isDescendantOfView:view]) return YES;
+    sg_stack = nil;
+    sg_scrim = nil;
     for (UIView *wrapper in view.subviews) {
         UIView *scrim = childNamed(wrapper, @"GradientView");
         if (scrim) sg_scrim = scrim;
@@ -99,13 +102,7 @@ static BOOL findHeader(UIView *view) {
     return NO;
 }
 
-static void layoutHeader(UIViewController *page) {
-    UIView *view = page.viewIfLoaded;
-    if (!view || !findHeader(view)) return;
-    UIView *header = sg_header;
-    UIStackView *stack = sg_stack;
-    vanish(sg_scrim);
-
+static void placeCapsule(UIView *header, UIStackView *stack) {
     static Class faceClass;
     if (!faceClass) faceClass = NSClassFromString(@"_TtC29ListeningActivity_ElementsKit21AdaptiveFaceContainer");
     UIView *face = nil;
@@ -117,8 +114,6 @@ static void layoutHeader(UIViewController *page) {
         stack.semanticContentAttribute = UISemanticContentAttributeForceRightToLeft;
         [stack setNeedsLayout];
     }
-    [stack layoutIfNeeded];
-
     UIView *toolbar = objc_getAssociatedObject(header, &kToolbarKey);
     if (!toolbar) {
         toolbar = [UIView new];
@@ -138,28 +133,54 @@ static void layoutHeader(UIViewController *page) {
     if (![title.font isEqual:font]) title.font = font;
 
     CGFloat height = ceil(font.lineHeight);
-    CGRect frame;
-    {
-        // Both sizes use the same toolbar and Spotify's native account action.
-        // Spotify's account control stays live above the glass and keeps its own action.
-        CGFloat pillWidth = MIN(header.bounds.size.width - SGRSideMargin * 2, MAX(220, ceil([text sizeWithAttributes:@{NSFontAttributeName:font}].width) + 120));
-        CGFloat left = (header.bounds.size.width - pillWidth) / 2;
-        toolbar.frame = CGRectMake(left, CGRectGetMidY(stack.frame) - 24, pillWidth, 48);
-        SGRGlassCapsuleInside(toolbar, &kToolbarGlassKey, toolbar.bounds.size, NO);
-        frame = CGRectMake(left + 24, CGRectGetMidY(stack.frame) - height / 2, pillWidth - 88, height);
-        if (face) {
-            CGRect native = [stack convertRect:face.frame toView:header];
-            CGFloat target = left + pillWidth - 28;
-            face.transform = CGAffineTransformMakeTranslation(target - CGRectGetMidX(native) + face.transform.tx, 0);
-        }
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    CGRect available = CGRectIntersection(header.bounds, [stack convertRect:stack.bounds toView:header]);
+    if (CGRectIsEmpty(available)) return;
+    CGFloat accountWidth = face.bounds.size.width;
+    CGFloat pillWidth = SGRHomeCapsuleWidth(available.size.width,
+        ceil([text sizeWithAttributes:@{NSFontAttributeName:font}].width), accountWidth, tablet);
+    CGFloat left = CGRectGetMidX(available) - pillWidth / 2;
+    CGFloat middle = [stack convertPoint:CGPointMake(CGRectGetMidX(stack.bounds), CGRectGetMidY(stack.bounds)) toView:header].y;
+    toolbar.frame = CGRectMake(left, middle - 24, pillWidth, 48);
+    SGRGlassCapsuleInside(toolbar, &kToolbarGlassKey, toolbar.bounds.size, NO);
+    CGFloat accountLeft = left + pillWidth - 16 - accountWidth;
+    CGRect frame = CGRectMake(left + 24, middle - height / 2, MAX(0, accountLeft - 12 - left - 24), height);
+    if (face) {
+        // Auto Layout owns centre/bounds. Measuring those avoids using a frame that
+        // already includes the previous translation, including after a stack-only pass.
+        CGPoint natural = [face.superview convertPoint:face.center toView:header];
+        CGPoint target = CGPointMake(accountLeft + accountWidth / 2, middle);
+        CGAffineTransform move = CGAffineTransformMakeTranslation(target.x - natural.x, target.y - natural.y);
+        if (!CGAffineTransformEqualToTransform(face.transform, move)) face.transform = move;
     }
     if (!CGRectEqualToRect(title.frame, frame)) title.frame = frame;
+}
+
+static void layoutHeader(UIViewController *page) {
+    UIView *view = page.viewIfLoaded;
+    if (!view || !findHeader(view)) return;
+    UIView *header = sg_header;
+    UIStackView *stack = sg_stack;
+    vanish(sg_scrim);
+    NSHashTable *owner = objc_getAssociatedObject(stack, &kStackOwnerKey);
+    if (owner.anyObject != header) {
+        owner = [NSHashTable weakObjectsHashTable];
+        [owner addObject:header];
+        objc_setAssociatedObject(stack, &kStackOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        __weak UIView *weakHeader = header;
+        SGRObserveLayout(stack, ^(UIView *row) {
+            UIView *current = weakHeader;
+            if (current && [row isDescendantOfView:current]) placeCapsule(current, (UIStackView *)row);
+        });
+    }
+    [stack layoutIfNeeded];
+    placeCapsule(header, stack);
     SGRHomeReserveToolbarSpace(page);
 
     static dispatch_once_t once;
     dispatch_once(&once, ^{
         SGLog(@"redesign home: header %@, avatar %@ in the stack %@, title %@, scrim %@", NSStringFromCGRect(header.frame),
-              face ? NSStringFromCGRect(face.frame) : @"not found", NSStringFromCGRect(stack.frame), NSStringFromCGRect(frame),
+              @"native account", NSStringFromCGRect(stack.frame), NSStringFromCGRect(titleIn(header).frame),
               sg_scrim ? @"found" : @"not found");
     });
 }

@@ -27,10 +27,9 @@
 // elements inside them, and it is undone before the player closes: the bar morphs back into a full
 // size cover, which a thumbnail would not match.
 //
-// With the lines up and the song playing, the controls go after a few seconds untouched and the lines
-// have the player to themselves, the way the Music app leaves its lyrics alone: the header row, the
-// thumbnail and the bottom stack (the lifted title row with it) fade out, and the lines' room grows
-// from the band between the title row and the progress bar to the whole height of the player. The
+// With the lines up and the song playing, the transport and header controls fade after a few seconds
+// untouched. The thumbnail and lifted song heading remain; the lines' room grows from the band
+// between that heading and the progress bar to the safe-area bottom. The
 // lines' view is laid over all of that room from the start and only its band moves
 // (SGRKaraokeView's lineInsets), so the lines spring to the new anchor as they move on to a new line,
 // rather than riding a view resized under them. A touch anywhere on the player brings the controls

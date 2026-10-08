@@ -10,7 +10,7 @@
 const CGFloat SGRHeaderInfoBottom = 14;
 const CGFloat SGRHeaderInfoTitleRise = 56;
 
-// The text kSide in from the edges; Play at least kPlayWidth wide, the Music app's; the gaps between.
+// Text uses the phone/tablet margins; Play prefers kPlayWidth, shrinking when the row needs it.
 static const CGFloat kPlayWidth = 148, kRowAbove = 16, kAboutAbove = 14;
 // The faces: Spotify's 24pt, overlap and 8pt gap, but no taller than the name's line, so none moves the title.
 static const CGFloat kFaceMax = 22, kFaceStep = 0.85, kFaceGap = 8, kFaceRing = 1.5;

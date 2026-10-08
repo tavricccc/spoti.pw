@@ -22,7 +22,7 @@
 // Layout passes without the header before that is logged.
 static const NSUInteger kMissesLogged = 60;
 
-static char kTitleKey;
+static char kTitleKey, kRowOwnerKey;
 
 static __weak UICollectionView *sg_list;
 static __weak UIStackView *sg_row;
@@ -102,7 +102,6 @@ static UILabel *titleIn(UIStackView *row) {
 }
 
 static void layoutHeader(UIStackView *row) {
-    vanish(sg_scrim);
 
     static Class faceClass;
     if (!faceClass) faceClass = NSClassFromString(@"_TtC29ListeningActivity_ElementsKit21AdaptiveFaceContainer");
@@ -123,7 +122,8 @@ static void layoutHeader(UIStackView *row) {
         title.text = text;
         title.accessibilityLabel = text;
     }
-    UIFont *font = SGRFont(UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    UIFont *font = SGRFont(tablet ? UIFontTextStyleTitle1 : UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
     if (![title.font isEqual:font]) title.font = font;
 
     CGFloat trailing = face ? CGRectGetMinX(face.frame) - SGRGrid : row.bounds.size.width;
@@ -144,6 +144,18 @@ static void layoutHeader(UIStackView *row) {
     %orig;
     UIView *view = ((UIViewController *)self).viewIfLoaded;
     if (!view || !findParts(view)) return;
+    vanish(sg_scrim);
+    NSHashTable *owner = objc_getAssociatedObject(sg_row, &kRowOwnerKey);
+    if (owner.anyObject != view) {
+        owner = [NSHashTable weakObjectsHashTable];
+        [owner addObject:view];
+        objc_setAssociatedObject(sg_row, &kRowOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        __weak UIView *weakPage = view;
+        SGRObserveLayout(sg_row, ^(UIView *row) {
+            UIView *current = weakPage;
+            if (current && [row isDescendantOfView:current]) layoutHeader((UIStackView *)row);
+        });
+    }
     layoutHeader(sg_row);
     SGRSearchCloseGap(sg_list);
 }

@@ -270,9 +270,15 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     if (CGRectIsNull(area) || CGRectIsNull(cover)) return l;
     CGRect row = untransformed(info, host), bar = untransformed(duration, host);
     // The thumbnail takes the title's own leading edge, so the two line up down the page.
-    BOOL tabletPortrait = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad && host.window.bounds.size.height > host.window.bounds.size.width;
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    CGRect lyricsArea = area;
+    if (tablet) {
+        UIEdgeInsets safe = host.safeAreaInsets;
+        lyricsArea.origin.x = CGRectGetMinX(host.bounds) + safe.left;
+        lyricsArea.size.width = MAX(0, host.bounds.size.width - safe.left - safe.right);
+    }
     CGFloat originalLeading = title ? CGRectGetMinX(untransformed(title, host)) : CGRectGetMinX(area) + SGRSideMargin;
-    CGFloat leading = tabletPortrait ? CGRectGetMinX(area) + kTabletHeadingMargin : originalLeading;
+    CGFloat leading = tablet ? CGRectGetMinX(lyricsArea) + kTabletHeadingMargin : originalLeading;
     l.cover = cover;
     UIView *header = sg_header.viewIfLoaded;
     CGFloat headerBottom = header && [header isDescendantOfView:host] ? CGRectGetMaxY(SGFrameIn(header, host)) : host.safeAreaInsets.top;
@@ -282,14 +288,14 @@ static SGRLyricsLayout layoutIn(UIView *host) {
     l.lift = top - CGRectGetMinY(row);
     l.shift = title ? leading + kThumbSide + kThumbGap - originalLeading : 0;
     CGFloat lines = MAX(CGRectGetMaxY(l.thumb), top + row.size.height) + kLyricsTop;
-    l.stage = CGRectMake(CGRectGetMinX(area), lines, area.size.width, CGRectGetMinY(bar) - kLyricsBottom - lines);
+    l.stage = CGRectMake(CGRectGetMinX(lyricsArea), lines, lyricsArea.size.width, CGRectGetMinY(bar) - kLyricsBottom - lines);
     // With the controls away: from the header row's top, just under the status bar, down to the home
     // indicator. The lines fade out at both ends, so nothing needs clearing beyond that.
     UIEdgeInsets safe = host.safeAreaInsets;
     // The song heading and small cover remain visible while the transport controls fade away.
     CGFloat roomTop = CGRectGetMinY(l.stage);
     CGFloat roomBottom = MAX(host.bounds.size.height - safe.bottom, CGRectGetMaxY(l.stage));
-    l.room = CGRectMake(CGRectGetMinX(area), roomTop, area.size.width, roomBottom - roomTop);
+    l.room = CGRectMake(CGRectGetMinX(lyricsArea), roomTop, lyricsArea.size.width, roomBottom - roomTop);
     l.ok = l.stage.size.height > kLivingHeight / 2 && l.lift < 0;
     return l;
 }

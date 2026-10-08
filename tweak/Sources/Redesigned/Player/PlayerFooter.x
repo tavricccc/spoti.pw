@@ -39,7 +39,7 @@ static const CGFloat kRowAboveSafeArea = 20, kRowMinBottom = 34;
 // and below them even out instead of all the room opening under them.
 static const CGFloat kControlsShare = 0.3;
 
-static char kConnectKey, kShareKey, kTrimmerKey, kQueueKey, kLyricsGlyphKey, kReachKey;
+static char kConnectKey, kShareKey, kTrimmerKey, kQueueKey, kLyricsGlyphKey, kReachKey, kRowOwnerKey;
 static __weak SGRGlyphButton *sg_lyricsGlyph;
 
 // The view the footer's stack view arranges around `view`.
@@ -157,10 +157,10 @@ static void lowerRow(UIView *row) {
     // Where the stack put the row, the row's own transform left out, and where it belongs.
     CGFloat middle = [stack convertPoint:row.center toView:player].y;
     CGFloat height = player.bounds.size.height;
-    CGFloat target = height - MAX(window.safeAreaInsets.bottom + kRowAboveSafeArea, kRowMinBottom);
+    CGFloat target = height - MAX(player.safeAreaInsets.bottom + kRowAboveSafeArea, kRowMinBottom);
     // iPad's docked player already places this row inside its own panel. The phone's extension toward
     // the home indicator can put it below the panel's clipped bounds after a split-view resize.
-    BOOL tablet = row.traitCollection.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
     CGFloat move = tablet ? 0 : MAX(0, round(target - middle));
     CGAffineTransform down = CGAffineTransformMakeTranslation(0, move);
     if (!CGAffineTransformEqualToTransform(row.transform, down)) row.transform = down;
@@ -200,7 +200,19 @@ static void layOutFooter(UIViewController *unit) {
     UIView *host = unit.viewIfLoaded;
     if (!host) return;
     // The unit lays out before its row does, and the moves are measured from where the row put things.
-    [SGRowIn(host) layoutIfNeeded];
+    UIStackView *nativeRow = SGRowIn(host);
+    NSHashTable *owner = objc_getAssociatedObject(host, &kRowOwnerKey);
+    if (nativeRow && owner.anyObject != nativeRow) {
+        owner = [NSHashTable weakObjectsHashTable];
+        [owner addObject:nativeRow];
+        objc_setAssociatedObject(host, &kRowOwnerKey, owner, OBJC_ASSOCIATION_RETAIN_NONATOMIC);
+        __weak UIViewController *weakUnit = unit;
+        SGRObserveLayout(nativeRow, ^(UIView *row) {
+            UIViewController *current = weakUnit;
+            if (current && [row isDescendantOfView:current.viewIfLoaded]) layOutFooter(current);
+        });
+    }
+    [nativeRow layoutIfNeeded];
     CGFloat width = host.bounds.size.width, middleY = CGRectGetMidY(host.bounds);
     BOOL rtl = host.effectiveUserInterfaceLayoutDirection == UIUserInterfaceLayoutDirectionRightToLeft;
 

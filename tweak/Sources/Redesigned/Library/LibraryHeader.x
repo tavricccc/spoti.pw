@@ -161,7 +161,8 @@ static void layoutTitle(UIView *header, UIView *spotifyTitle, CGFloat leading, C
         title.text = text;
         title.accessibilityLabel = text;
     }
-    UIFont *font = SGRFont(UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
+    BOOL tablet = UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad;
+    UIFont *font = SGRFont(tablet ? UIFontTextStyleTitle1 : UIFontTextStyleLargeTitle, UIFontWeightBold, UIContentSizeCategoryLarge);
     if (![title.font isEqual:font]) title.font = font;
 
     CGFloat height = ceil(font.lineHeight);
